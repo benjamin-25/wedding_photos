@@ -1,0 +1,115 @@
+.panel {
+  padding: 26px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: center;
+  text-align: center;
+}
+
+.heading {
+  font-size: 1.12rem;
+  font-weight: 600;
+  align-self: flex-start;
+}
+
+.hint {
+  font-size: 0.85rem;
+  color: var(--muted);
+  line-height: 1.55;
+  align-self: flex-start;
+  margin-top: -6px;
+}
+
+.qr {
+  padding: 16px;
+  border-radius: var(--radius);
+  background: #fff;
+  color: #17130f;
+  box-shadow: var(--shadow);
+  margin: 4px 0;
+}
+
+.linkRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 8px 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--background);
+}
+
+.link {
+  flex: 1;
+  text-align: left;
+  font-size: 0.85rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+}
+
+.linkRow button {
+  padding: 7px 15px;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.openLink {
+  width: 100%;
+  font-size: 0.9rem;
+}
+
+/* ---------- opciones y exportación del QR ---------- */
+
+.options {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.option {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  text-align: left;
+}
+
+.option select {
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--background);
+  color: var(--foreground);
+  font-size: 0.85rem;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.exports {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+.exports .btn {
+  flex: 1;
+  min-width: 130px;
+  padding: 9px 12px;
+  font-size: 0.85rem;
+}
+
+.error {
+  font-size: 0.83rem;
+  color: var(--danger);
+}

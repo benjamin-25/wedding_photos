@@ -1,69 +1,74 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+import Link from 'next/link';
+import type { Metadata } from 'next';
+import { ROUTES, WEDDING_CONFIG } from '@/lib/constants';
+import styles from './page.module.css';
+
+export const metadata: Metadata = {
+  title: 'Inicio',
+};
+
+function formatWeddingDate(value: string): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const date = new Date(`${value}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString('es-ES', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+}
 
 export default function Home() {
+  const dateLabel = formatWeddingDate(WEDDING_CONFIG.date);
+
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className={styles.intro}>
-          <h1>
-            To get started, edit the{" "}
-            <code className={styles.code}>page.tsx</code> file.
-          </h1>
+    <main className={styles.page}>
+      <div className={styles.hero}>
+        <p className={styles.eyebrow}>Nos casamos</p>
+        <h1 className={styles.title}>{WEDDING_CONFIG.title}</h1>
+        {dateLabel ? (
+          <p className={styles.date}>{dateLabel}</p>
+        ) : (
+          <p className={styles.date}>Comparte con nosotros los mejores momentos</p>
+        )}
+
+        <div className={styles.actions}>
+          <Link className="btn btn-primary" href={ROUTES.GALLERY}>
+            Ver la galería
+          </Link>
+          <Link className="btn btn-ghost" href={ROUTES.ADMIN}>
+            Subir fotos
+          </Link>
+        </div>
+      </div>
+
+      <section className={styles.features} aria-label="Cómo funciona">
+        <article className="card">
+          <span className={styles.step}>1</span>
+          <h2>Elige tus fotos</h2>
           <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
+            Desde el móvil o el ordenador. JPEG, PNG, WebP o HEIC de hasta 25&nbsp;MB por
+            archivo.
           </p>
-        </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+        </article>
+        <article className="card">
+          <span className={styles.step}>2</span>
+          <h2>Súbelas aquí mismo</h2>
+          <p>
+            Se guardan en nuestro Drive privado, así que las fotos no se pierden ni las ve
+            nadie más.
+          </p>
+        </article>
+        <article className="card">
+          <span className={styles.step}>3</span>
+          <h2>Míralas todos juntos</h2>
+          <p>
+            Comparte el enlace o el código QR de la boda con los invitados para que las vean
+            al instante.
+          </p>
+        </article>
+      </section>
+    </main>
   );
 }
