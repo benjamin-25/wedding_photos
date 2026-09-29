@@ -4,15 +4,15 @@ Aplicación web para recoger las fotos de los invitados de una boda en un Google
 Drive **privado**, y publicarlas en una galería con enlace y código QR.
 
 - **Next.js 16** (App Router, Turbopack) · React 19 · TypeScript
-- **NextAuth v5** con un único administrador validado por variables de entorno
-- **Google Drive API v3** mediante cuenta de servicio
+- **NextAuth v5** con un único administrador que entra con su cuenta de Google
+- **Google Drive API v3** mediante OAuth 2.0 a nombre de ese administrador
 - **sharp** para servir miniaturas y tamaños intermedios sin descargar el original
 - **CSS Modules**, sin framework de estilos
 
 Las fotos nunca se exponen directamente: el navegador pide las imágenes a
-`/api/photos/:id/raw` y el servidor hace de proxy con la cuenta de servicio, de
-modo que el Drive puede permanecer completamente privado y las credenciales no
-salen nunca al cliente.
+`/api/photos/:id/raw` y el servidor hace de proxy con las credenciales de
+OAuth, de modo que el Drive puede permanecer completamente privado y las
+credenciales no salen nunca al cliente.
 
 Los invitados **no necesitan cuenta**: entran desde el QR, eligen las fotos que
 quieren con las casillas y se las descargan en un ZIP.
@@ -52,45 +52,70 @@ Genera el secreto de sesión:
 node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 ```
 
-Y el hash de la contraseña del administrador:
+Y la cuenta de Google que administrará la boda. No hay contraseña: el acceso se
+hace con Google y solo entra el email de `ADMIN_EMAIL`.
 
-```bash
-node -e "console.log(Buffer.from(require('bcryptjs').hashSync('tu-contraseña', 10)).toString('base64'))"
-```
+### 3. Configurar Google Drive con OAuth
 
-> **El hash va en Base64, no en crudo.** Next.js expande `$VARIABLE` al leer
-> `.env.local`, y un hash bcrypt empieza por `$2b$10$...`. Escrito tal cual, la
-> carga resolvería `$2b`, `$10` y `$<salt>` contra variables inexistentes y los
-> borraría: el servidor recibiría un hash corrupto y el login fallaría sin
-> mostrar ningún error. Usa siempre la variable `ADMIN_PASSWORD_HASH_B64`.
-
-### 3. Configurar Google Drive
+> **Por qué OAuth y no una cuenta de servicio.** Una Service Account no tiene
+> cuota de almacenamiento (`storageQuota.limit` es `0`) y Google no le permite
+> ser propietaria de un archivo. Al subir una foto, la cuenta de servicio
+> quedaba como propietaria y la API respondía `403 Service Accounts do not
+> have storage quota`. Compartir una carpeta con ella solo funciona si la
+> carpeta está en un dominio de **Google Workspace**; en una cuenta personal
+> `@gmail.com` el archivo acaba en la "My Drive" de la cuenta de servicio, que
+> no tiene espacio. Con OAuth la app usa tu cuenta real y las fotos consumen
+> su cuota.
 
 1. Crea un proyecto en [Google Cloud Console](https://console.cloud.google.com/).
 2. Habilita la **Google Drive API**.
-3. Crea una **cuenta de servicio** y descarga su clave JSON.
-4. Abre la carpeta de destino en Drive y compártela con el correo de la cuenta
-   de servicio, con permiso de **editor**. Repite el paso en las subcarpetas.
-5. Copia en `.env.local`:
+3. En **APIs y servicios → Pantalla de consentimiento OAuth**, elige *External*,
+   añade tu email como usuario de prueba y **publica la aplicación**. Mientras
+   esté en modo *Testing*, Google caduca los refresh tokens a los 7 días y la
+   app dejaría de poder leer y escribir en Drive.
+4. En **APIs y servicios → Credenciales → Crear cliente OAuth 2.0**, elige
+   *Aplicación web* y añade **los dos** URIs de redirección autorizados:
+
+   | URI | Para qué |
+   | --- | --- |
+   | `http://localhost:8765` | El script `npm run drive:token` |
+   | `http://localhost:3000/api/auth/callback/google` | El login con Google |
+
+   Si falta el segundo, Google responde `Error 401: redirect_uri_mismatch` y el
+   login nunca vuelve a la aplicación.
+5. Copia el ID y el secreto del cliente en `.env.local`:
 
 ```bash
-GOOGLE_SERVICE_ACCOUNT_EMAIL=cuenta-de-servicio@proyecto.iam.gserviceaccount.com
-GOOGLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
-GOOGLE_DRIVE_FOLDER_ID=id-de-la-carpeta
+GOOGLE_CLIENT_ID=xxxxx.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=GOCSPX-xxxxx
 ```
 
-> La clave privada se pega entrecomillada y con los saltos de línea como `\n`.
-> El código de `src/lib/google-drive.ts` los normaliza automáticamente, así que
-> ambas formas funcionan.
+6. Genera el refresh token. Abre el navegador, autoriza el acceso y copia la
+   línea que imprime:
 
-Para obtener el `GOOGLE_DRIVE_FOLDER_ID`, abre la carpeta en el navegador: es el
-último segmento de la URL (`https://drive.google.com/drive/folders/ESTE_ID`).
+```bash
+npm run drive:token
+```
 
-> La clave JSON y la API habilitada deben pertenecer **al mismo proyecto**. Si
-> Google responde `Google Drive API has not been used in project ... before or
-> it is disabled`, falta activar *Google Drive API* en
-> [ese proyecto](https://console.cloud.google.com/apis/library/drive.googleapis.com)
-> (tarda unos minutos en propagarse).
+```bash
+GOOGLE_REFRESH_TOKEN=1//0eXXXXX
+```
+
+7. Abre la carpeta de destino en Drive y copia su identificador — es el último
+   segmento de la URL (`https://drive.google.com/drive/folders/ESTE_ID`):
+
+```bash
+GOOGLE_DRIVE_FOLDER_ID=ESTE_ID
+```
+
+Las mismas credenciales (`GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET`) sirven
+para el login con Google y para las llamadas a la API, así que solo hay que
+crear un cliente OAuth.
+
+> En Vercel hay que añadir también `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`,
+> `GOOGLE_REFRESH_TOKEN`, `GOOGLE_DRIVE_FOLDER_ID` y `ADMIN_EMAIL` en
+> *Settings → Environment Variables*. El refresh token es un secreto: no lo
+> subas al repositorio.
 
 ### 4. Arrancar
 
@@ -106,11 +131,13 @@ Abre [http://localhost:3000](http://localhost:3000).
 | `npm run build` | Compilación de producción |
 | `npm start` | Sirve la compilación de producción |
 | `npm run lint` | ESLint |
+| `npm run drive:token` | Genera el `GOOGLE_REFRESH_TOKEN` de Drive |
 
 ### 5. Iniciar sesión
 
-Entra en `/admin` con las credenciales de `ADMIN_EMAIL` y
-`ADMIN_PASSWORD_HASH_B64`. Desde ahí puedes:
+Entra en `/admin` y pulsa **Continuar con Google** con la cuenta cuyo email
+figura en `ADMIN_EMAIL` (típicamente la misma que contiene la carpeta de fotos).
+Cualquier otra cuenta de Google es rechazada. Desde ahí puedes:
 
 - **Subir fotos** arrastrándolas o seleccionándolas (hasta 50 por envío).
 - **Ver el código QR** de la galería, elegir su tamaño y color, y descargarlo como
@@ -127,10 +154,10 @@ Entra en `/admin` con las credenciales de `ADMIN_EMAIL` y
 | --- | --- | --- |
 | `AUTH_SECRET` | En producción | Cifra la cookie de sesión. Generarla con `crypto.randomBytes(32)`. |
 | `AUTH_TRUST_HOST` | No | Alternativa a `trustHost: true` (ya activado en `src/auth.ts`). |
-| `ADMIN_EMAIL` | Sí | Email del administrador. |
-| `ADMIN_PASSWORD_HASH_B64` | Sí | Hash bcrypt de la contraseña, **en Base64** (ver arriba). |
-| `GOOGLE_SERVICE_ACCOUNT_EMAIL` | Para la galería | Email de la cuenta de servicio. |
-| `GOOGLE_PRIVATE_KEY` | Para la galería | Clave privada de la cuenta de servicio. |
+| `ADMIN_EMAIL` | Sí | Única cuenta de Google con acceso al panel. |
+| `GOOGLE_CLIENT_ID` | Para la galería | ID del cliente OAuth 2.0. |
+| `GOOGLE_CLIENT_SECRET` | Para la galería | Secreto del cliente OAuth 2.0. |
+| `GOOGLE_REFRESH_TOKEN` | Para la galería | Refresh token de la cuenta de Google proprietaria de la carpeta. Se genera con `npm run drive:token`. |
 | `GOOGLE_DRIVE_FOLDER_ID` | Para la galería | Carpeta raíz de las fotos. |
 | `NEXT_PUBLIC_APP_URL` | Recomendada | URL pública; se usa en el código QR. |
 | `NEXT_PUBLIC_WEDDING_TITLE` | No | Título que aparece en la portada. |
@@ -208,20 +235,22 @@ Las fotos aceptadas son JPEG, PNG, WebP y HEIC/HEIF, de hasta **25 MB** cada una
 ```
 src/
 ├── proxy.ts                 # Protección de /admin (antes middleware.ts)
-├── auth.ts                  # Configuración de NextAuth v5
+├── auth.ts                  # Configuración de NextAuth v5 (login con Google)
 ├── app/
 │   ├── page.tsx             # Portada
 │   ├── gallery/             # Galería pública
-│   ├── login/               # Formulario de acceso
+│   ├── login/               # Acceso con Google
 │   ├── admin/               # Panel privado
 │   └── api/                 # Route Handlers
 ├── components/              # Grid, barra de selección, uploader, gestor, QR, carpetas
 ├── lib/
-│   ├── google-drive.ts      # Cliente de la API de Drive
+│   ├── google-drive.ts      # Cliente de la API de Drive (OAuth del administrador)
 │   ├── constants.ts         # Rutas y límites
 │   ├── photos.ts            # Mapeo Drive → Photo y utilidad de concurrencia
 │   └── utils.ts             # Formato de tamaño y fecha
 └── types/                   # Tipos compartidos
+scripts/
+└── get-google-refresh-token.mjs  # Genera GOOGLE_REFRESH_TOKEN
 ```
 
 ---
@@ -234,14 +263,39 @@ En Next.js 16 la convención `middleware` está **deprecada** y se ha renombrado
 `proxy`, que además usa el runtime de Node.js. Si añades un archivo
 `middleware.ts`, Next.js seguirá funcionando pero con un aviso de deprecación.
 
-### El hash de la contraseña va en Base64
+### La identidad de Drive es la del administrador, no una cuenta de servicio
 
-Next.js expande `$VARIABLE` al cargar `.env.local`. Un hash bcrypt tiene la forma
-`$2b$10$<salt><hash>`, así que escrito en crudo la carga resuelve `$2b`, `$10` y
-`$<salt>` contra variables que no existen y **los borra**: el hash llega corrupto
-al servidor y el login falla con `CredentialsSignin` sin ningún aviso. Comillas
-simples o dobles no ayudan. `src/auth.ts` decodifica `ADMIN_PASSWORD_HASH_B64` y
-comprueba que el resultado parece un hash bcrypt antes de usarlo.
+Una Service Account tiene `storageQuota.limit = 0` y no puede ser propietaria de
+un archivo, así que toda subida fallaba con `403 Service Accounts do not have
+storage quota`. La app se autentica con OAuth 2.0 usando la cuenta real del
+administrador, y las fotos consumen su cuota.
+
+Dos decisiones que se derivan de ahí:
+
+- **El refresh token vive en `GOOGLE_REFRESH_TOKEN`, no en la sesión.** La
+  galería la consultan invitados sin sesión, así que el cliente de Drive se
+  construye siempre desde las variables de entorno. Además, un refresh token en
+  la cookie de sesión es una credencial de largo alcance expuesta al cliente.
+- **El alcance es `drive` completo, no `drive.file`.** `drive.file` solo da
+  acceso a los ficheros que la propia aplicación crea o abre, así que las fotos
+  que ya había en la carpeta desaparecerían de la galería.
+
+`src/lib/google-drive.ts` cachea un cliente por refresh token. `googleapis`
+renueva el access token de forma transparente cuando caduca (cada hora), así que
+no hay que refrescar nada a mano.
+
+### `scope` a mano sustituye los scopes OIDC del proveedor
+
+El proveedor `Google` de Auth.js es de tipo `oidc` y saca el perfil del usuario
+del `id_token`. Si en `authorization.params.scope` se pone solo el alcance de
+Drive, se **sustituye** la lista por defecto del proveedor: Google no emite
+`id_token`, el callback `signIn` recibe `user.email === undefined` y la
+comprobación contra `ADMIN_EMAIL` falla siempre. Por eso `GOOGLE_SCOPES` en
+`src/auth.ts` concatena `drive` con `openid email profile`.
+
+Relacionado: el login **no** pide `access_type=offline` ni `prompt=consent`.
+El acceso a Drive no viene de la sesión, sino de `GOOGLE_REFRESH_TOKEN`, así que
+no hace falta forzar la pantalla de consentimiento en cada entrada.
 
 ### `trustHost` en producción
 
@@ -275,6 +329,8 @@ todas fallan, responde `502` con el detalle de los errores.
 
 - Requiere un runtime de **Node.js**, no un export estático: depende de la API de
   Drive y de la sesión.
+- `GOOGLE_REFRESH_TOKEN` es una credencial de largo alcance. En Vercel añádela
+  como variable de entorno marcada como secreta; nunca la subas al repositorio.
 - Si despliegas en **Vercel**, la subida de archivos de 25 MB puede superar el
   límite de 4,5 MB de las funciones serverless. Para archivos grandes, usa un
   servidor Node propio o aumenta el límite de tu plan.
@@ -283,4 +339,6 @@ todas fallan, responde `502` con el detalle de los errores.
 ### Verificación con credenciales reales
 
 `npm run build` no necesita credenciales de Google Drive, pero para comprobar la
-integración completa necesitas una cuenta de servicio y una carpeta reales.
+integración completa necesitas un cliente OAuth y una carpeta reales. El script
+`npm run drive:token` imprime la cuenta conectada y su cuota de Drive, así que
+es la forma más rápida de confirmar que `GOOGLE_REFRESH_TOKEN` es válido.

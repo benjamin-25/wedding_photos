@@ -1,9 +1,9 @@
 :root {
   /* Paleta definida en implementation_plan.md §6 */
   --gold: #f5b46e;
-  --cream: #fff8f0;
+  --cream: #cfc0ae;
   --blush: #f5e6e0;
-  --ink: #292949;
+  --ink: #aca9a9;
 
   --background: var(--cream);
   --foreground: var(--ink);
@@ -27,9 +27,9 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #67b29f;
-    --foreground: #f3ece3;
-    --surface: #1c1c36;
+    --background: #6aad9b;
+    --foreground: #ddb98a;
+    --surface: #175a57;
     --surface-muted: #262644;
     --border: #35355a;
     --muted: #a49bb0;

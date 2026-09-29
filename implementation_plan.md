@@ -30,11 +30,10 @@ graph TB
 | Tecnología | Propósito |
 |:---|:---|
 | **Next.js 14** (App Router) | Framework principal |
-| **NextAuth.js v5** (Auth.js) | Autenticación admin (Credentials) |
-| **Google Drive API v3** | Almacenamiento de fotos (Service Account) |
+| **NextAuth.js v5** (Auth.js) | Autenticación admin (Google OAuth) |
+| **Google Drive API v3** | Almacenamiento de fotos (OAuth 2.0) |
 | **`qrcode.react`** | Generación de QR codes |
 | **JSZip** | Descarga múltiple en ZIP |
-| **`bcryptjs`** | Hash de contraseñas |
 | **CSS Modules** | Estilos con diseño premium |
 | **`next/image`** | Optimización de imágenes |
 
@@ -48,30 +47,40 @@ graph TB
 > [!IMPORTANT]
 > **GitHub Pages** no soporta API Routes ni servidor Node.js. Para el fallback estático, se pre-generará la galería con las fotos existentes al momento del build. La administración y descarga dinámica solo funcionarán en Vercel.
 
-### Google Drive — Service Account
+### Google Drive — OAuth 2.0 a nombre del administrador
 
-Se usará una **Service Account** (sin requerir login de los invitados a Google):
-1. El admin comparte una carpeta de Google Drive con el email de la Service Account **como Editor**
+La app se autentica con la **cuenta de Google real** del administrador (sin
+requerir login de los invitados a Google):
+1. El administrador inicia sesión en el panel con su cuenta de Google
 2. El admin sube fotos desde el panel web → API Route → Google Drive API `files.create`
 3. La app lista las fotos de esa carpeta via API
 4. Las fotos se sirven como proxy a través de API Routes (evita problemas de CORS y links expirados)
 
 > [!IMPORTANT]
-> La Service Account necesita permisos de **Editor** en la carpeta de Drive (no solo Viewer) para poder subir fotos.
+> **No se usa una cuenta de servicio.** Las Service Accounts no tienen cuota de
+> almacenamiento (`storageQuota.limit = 0`) y Google no les permite ser
+> propietarias de un archivo, por lo que cada subida fallaba con `403 Service
+> Accounts do not have storage quota`. Compartir una carpeta con la cuenta de
+> servicio solo funciona si la carpeta está en un dominio de **Google
+> Workspace**; en una cuenta personal `@gmail.com` el archivo acaba en la "My
+> Drive" de la cuenta de servicio, que no tiene espacio. Con OAuth la app usa la
+> cuenta del administrador y las fotos consumen su cuota (15 GB).
 
 ---
 
 ## User Review Required
 
 > [!WARNING]
-> **Credenciales del Admin**: Las credenciales (usuario/contraseña) se almacenarán en variables de entorno (`ADMIN_EMAIL` y `ADMIN_PASSWORD_HASH`). NO se usará base de datos. Si en el futuro necesitas múltiples admins, se requerirá migrar a una DB.
+> **Acceso del Admin**: No hay contraseña. El admin entra con su cuenta de Google mediante OAuth y `src/auth.ts` solo admite el email de `ADMIN_EMAIL`. NO se usará base de datos. Si en el futuro necesitas múltiples admins, se requerirá migrar a una DB.
 
 > [!IMPORTANT]
 > **Google Cloud Setup**: Antes de ejecutar la app necesitarás:
 > 1. Crear un proyecto en Google Cloud Console
 > 2. Habilitar la Google Drive API
-> 3. Crear una Service Account y descargar las credenciales JSON
-> 4. Compartir la carpeta de fotos con el email de la Service Account **como Editor**
+> 3. Configurar la pantalla de consentimiento OAuth y **publicarla** (en modo *Testing* los refresh tokens caducan a los 7 días)
+> 4. Crear un cliente OAuth 2.0 de tipo *Aplicación web* con dos URIs de redirección autorizados: `http://localhost:8765` (para el script del refresh token) y `http://localhost:3000/api/auth/callback/google` (para el login)
+> 5. Generar `GOOGLE_REFRESH_TOKEN` con `npm run drive:token`
+> 6. Poner el `GOOGLE_DRIVE_FOLDER_ID` de la carpeta que contiene las fotos
 
 ---
 
@@ -170,8 +179,8 @@ c:\Desarrollo\wedding-photos-app\
 
 #### [NEW] `package.json`
 - Next.js 14, React 18, TypeScript
-- Dependencias: `googleapis`, `next-auth@beta`, `bcryptjs`, `qrcode.react`, `jszip`, `zod`
-- Scripts: `dev`, `build`, `start`, `export` (para GitHub Pages)
+- Dependencias: `googleapis`, `next-auth@beta`, `qrcode.react`, `jszip`, `zod`
+- Scripts: `dev`, `build`, `start`, `drive:token` (para GitHub Pages)
 
 #### [NEW] `next.config.js`
 - Configuración de `images` con dominios permitidos (`drive.google.com`)
@@ -183,11 +192,11 @@ c:\Desarrollo\wedding-photos-app\
 # Auth
 AUTH_SECRET=
 ADMIN_EMAIL=
-ADMIN_PASSWORD_HASH=
 
-# Google Drive
-GOOGLE_SERVICE_ACCOUNT_EMAIL=
-GOOGLE_PRIVATE_KEY=
+# Google Drive (OAuth 2.0)
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_REFRESH_TOKEN=
 GOOGLE_DRIVE_FOLDER_ID=
 
 # App
@@ -198,29 +207,36 @@ NEXT_PUBLIC_WEDDING_DATE="2026-12-15"
 
 ---
 
-### 2. Autenticación (NextAuth.js v5 + Credentials)
+### 2. Autenticación (NextAuth.js v5 + Google OAuth)
 
 #### [NEW] `src/auth.ts`
-- Provider: Credentials (email + password)
-- Validación con Zod
-- Comparación bcrypt contra `ADMIN_PASSWORD_HASH`
+- Provider: Google (OAuth 2.0), sin contraseña
+- Callback `signIn` que solo admite el email de `ADMIN_EMAIL`
+- `access_type=offline` + `prompt=consent` para obtener el refresh token
+- Alcance `https://www.googleapis.com/auth/drive` completo, para poder gestionar
+  también las fotos que ya había en la carpeta
 - Estrategia JWT
 
-#### [NEW] `src/middleware.ts`
+#### [NEW] `src/proxy.ts`
 - Protección de rutas `/admin/*`
 - Redirect a `/login` si no autenticado
 
 #### [NEW] `src/app/login/page.tsx`
-- Formulario elegante de login
-- Server Action para `signIn`
-- Manejo de errores
+- Botón «Continuar con Google»
+- Mensaje indicando que solo entra la cuenta propietaria de la carpeta
+
+#### [NEW] `scripts/get-google-refresh-token.mjs`
+- Flujo OAuth local en el puerto 8765
+- Canjea el código y muestra la cuenta, su cuota y el `GOOGLE_REFRESH_TOKEN`
 
 ---
 
 ### 3. Google Drive Integration
 
 #### [NEW] `src/lib/google-drive.ts`
-- Inicialización de Service Account con `googleapis`
+- Cliente `OAuth2` de `googleapis` construido con `GOOGLE_REFRESH_TOKEN`; la
+  librería renueva el access token de forma transparente. Se cachea un cliente
+  por refresh token
 - `listPhotos(folderId)`: Lista imágenes de una carpeta
 - `uploadPhoto(file, folderId)`: **Sube una foto a Google Drive** usando `drive.files.create` con `multipart` upload
 - `deletePhoto(fileId)`: Elimina una foto de Google Drive

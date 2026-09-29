@@ -5,6 +5,8 @@ import type { NextRequest } from 'next/server';
 import { APP_CONFIG, isPhotoSize } from '@/lib/constants';
 import type { PhotoSize } from '@/lib/constants';
 import { getPhotoStream, isDriveConfigured } from '@/lib/google-drive';
+import { readVariant, writeVariant } from '@/lib/photo-cache';
+import type { CacheableSize } from '@/lib/photo-cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -80,6 +82,25 @@ export async function GET(
   const requested = request.nextUrl.searchParams.get('size');
   const size: PhotoSize = isPhotoSize(requested) ? requested : 'full';
 
+  // Las variantes reducidas se sirven del disco si ya se generaron antes, lo
+  // que evita tanto la llamada a Drive como el paso por `sharp`. `full` no se
+  // cachea: ya va en streaming y la cabecera `immutable` lo resuelve el
+  // navegador.
+  if (size !== 'full') {
+    const cached = await readVariant(id, size);
+    if (cached) {
+      return new Response(new Uint8Array(cached.data), {
+        headers: {
+          'Content-Type': cached.mimeType,
+          'Content-Length': String(cached.data.byteLength),
+          'Cache-Control': 'public, max-age=31536000, immutable',
+          'X-Photo-Size': size,
+          'X-Photo-Cache': 'hit',
+        },
+      });
+    }
+  }
+
   try {
     const { stream, mimeType, size: byteSize } = await getPhotoStream(id);
 
@@ -100,13 +121,19 @@ export async function GET(
 
     const original = await toBuffer(stream);
     const body = await resize(original, size);
+    const resized = Buffer.from(await body.arrayBuffer());
+    const servedMimeType = body.type || mimeType;
 
-    return new Response(body, {
+    // Se guarda en segundo plano: si falla, la respuesta ya está construida.
+    await writeVariant(id, size as CacheableSize, resized, servedMimeType);
+
+    return new Response(new Uint8Array(resized), {
       headers: {
-        'Content-Type': body.type || 'image/jpeg',
-        'Content-Length': String(body.size),
+        'Content-Type': servedMimeType,
+        'Content-Length': String(resized.byteLength),
         'Cache-Control': 'public, max-age=31536000, immutable',
         'X-Photo-Size': size,
+        'X-Photo-Cache': 'miss',
       },
     });
   } catch (error) {

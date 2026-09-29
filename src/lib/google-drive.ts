@@ -1,42 +1,72 @@
 import { google, drive_v3 } from 'googleapis';
 
 /**
- * Cliente de autenticación y servicio de Google Drive con cuenta de servicio.
+ * Cliente de Google Drive autenticado con OAuth 2.0 en nombre de una persona.
  * Módulo exclusivo del servidor para interactuar con la API v3 de Google Drive.
+ *
+ * Por qué OAuth y no una cuenta de servicio: una Service Account no tiene
+ * cuota de almacenamiento propia (`storageQuota.limit` es 0) ni puede ser
+ * propietaria de un archivo. Al crear una foto, la cuenta de servicio quedaba
+ * como propietaria y Google rechazaba la subida con
+ * "Service Accounts do not have storage quota". Autenticando con la cuenta
+ * real del administrador, las fotos se guardan en su Drive y consumen su cuota.
+ *
+ * La identidad vive en `GOOGLE_REFRESH_TOKEN`, no en la sesión: la galería
+ * pública la consultan invitados sin sesión, así que el cliente se construye
+ * siempre a partir de las variables de entorno.
  */
 
-// Instancia en caché para reutilizar la conexión y el cliente JWT
-let cachedDriveClient: drive_v3.Drive | null = null;
+// Un cliente por refresh token. La librería renueva el access token por su
+// cuenta cuando caduca (1 hora), así que basta con conservar el cliente entre
+// llamadas en lugar de renegociar uno nuevo en cada petición.
+const driveClients = new Map<string, drive_v3.Drive>();
 
 /**
- * Inicializa y devuelve el cliente de Google Drive utilizando las credenciales
- * de la cuenta de servicio configuradas en las variables de entorno.
+ * Devuelve el refresh token que identifica al administrador de Drive.
  */
-export function getDriveClient(): drive_v3.Drive {
-  if (cachedDriveClient) {
-    return cachedDriveClient;
-  }
+function getRefreshToken(): string {
+  const refreshToken = process.env.GOOGLE_REFRESH_TOKEN?.trim();
 
-  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  let key = process.env.GOOGLE_PRIVATE_KEY;
-
-  if (!email || !key) {
+  if (!refreshToken) {
     throw new Error(
-      'Configuración de Google Drive incompleta: faltan GOOGLE_SERVICE_ACCOUNT_EMAIL o GOOGLE_PRIVATE_KEY en las variables de entorno'
+      'Configuración de Google Drive incompleta: falta GOOGLE_REFRESH_TOKEN en las variables de entorno. ' +
+        'Genéralo con `npm run drive:token` siguiendo las instrucciones del README.'
     );
   }
 
-  // Limpiar posibles comillas y normalizar los saltos de línea escapados en la clave privada
-  key = key.replace(/^"|"$/g, '').replace(/\\n/g, '\n');
+  return refreshToken;
+}
 
-  const auth = new google.auth.JWT({
-    email,
-    key,
-    scopes: ['https://www.googleapis.com/auth/drive'],
-  });
+/**
+ * Inicializa y devuelve el cliente de Google Drive utilizando las credenciales
+ * OAuth configuradas en las variables de entorno.
+ */
+export function getDriveClient(): drive_v3.Drive {
+  const refreshToken = getRefreshToken();
 
-  cachedDriveClient = google.drive({ version: 'v3', auth });
-  return cachedDriveClient;
+  const cached = driveClients.get(refreshToken);
+  if (cached) {
+    return cached;
+  }
+
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+
+  if (!clientId || !clientSecret) {
+    throw new Error(
+      'Configuración de Google Drive incompleta: faltan GOOGLE_CLIENT_ID o GOOGLE_CLIENT_SECRET en las variables de entorno'
+    );
+  }
+
+  // El refresh token no se puede pasar al constructor: se inyecta con
+  // `setCredentials`. Con él, googleapis pide un access token nuevo cada vez
+  // que caduca el anterior, de forma transparente para el resto del módulo.
+  const auth = new google.auth.OAuth2({ clientId, clientSecret });
+  auth.setCredentials({ refresh_token: refreshToken });
+
+  const client = google.drive({ version: 'v3', auth });
+  driveClients.set(refreshToken, client);
+  return client;
 }
 
 /**
@@ -51,9 +81,10 @@ export function getFolderId(folderId?: string): string {
  */
 export function isDriveConfigured(): boolean {
   return Boolean(
-    process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL &&
-    process.env.GOOGLE_PRIVATE_KEY &&
-    process.env.GOOGLE_DRIVE_FOLDER_ID
+    process.env.GOOGLE_CLIENT_ID &&
+      process.env.GOOGLE_CLIENT_SECRET &&
+      process.env.GOOGLE_REFRESH_TOKEN &&
+      process.env.GOOGLE_DRIVE_FOLDER_ID
   );
 }
 

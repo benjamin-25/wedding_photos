@@ -31,7 +31,7 @@ export default async function LoginPage({
     <main className={styles.page}>
       <div className={styles.card}>
         <p className={styles.eyebrow}>{WEDDING_CONFIG.title}</p>
-        <h1 className={styles.title}>Acceso de invitados</h1>
+        <h1 className={styles.title}>Acceso de administración</h1>
         <p className={styles.subtitle}>
           Esta zona es solo para subir y gestionar las fotos de la boda.
         </p>

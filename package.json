@@ -6,10 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "drive:token": "node scripts/get-google-refresh-token.mjs"
   },
   "dependencies": {
-    "bcryptjs": "^3.0.3",
     "googleapis": "^182.0.0",
     "jszip": "^3.10.2",
     "next": "16.3.6",
@@ -21,7 +21,6 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@types/bcryptjs": "^3.0.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
