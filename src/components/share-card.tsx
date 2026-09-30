@@ -118,7 +118,7 @@ export default function ShareCard({ title, url }: { title: string; url: string }
     <section className={`card ${styles.panel}`} aria-label="Compartir la galería">
       <h2 className={styles.heading}>Comparte la galería</h2>
       <p className={styles.hint}>
-        Escanead el código o copiad el enlace para que los invitados consulten las fotos.
+        Escanea el código o copia el enlace para que los invitados consulten las fotos.
       </p>
 
       <div className={styles.qr} ref={qrRef}>
