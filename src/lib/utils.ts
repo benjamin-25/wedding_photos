@@ -42,6 +42,6 @@ export function cn(...classes: (string | undefined | false | null)[]): string {
 }
 
 export function getGalleryUrl(): string {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const baseUrl = process.env.NEXT_APP_URL || 'http://localhost:3000';
   return `${baseUrl}/gallery`;
 }
