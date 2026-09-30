@@ -1,0 +1,17 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 64 64"
+  width="64"
+  height="64"
+  role="img"
+  aria-label="Logotipo provisional"
+>
+  <!--
+    MARCA PROVISIONAL. Sustituye este fichero por tu logotipo real
+    manteniendo el nombre `logo-creacion.svg`, o cambia la ruta en
+    `CREDITS_CONFIG.logo` (src/lib/constants.ts) si es un PNG.
+  -->
+  <circle cx="32" cy="32" r="29" fill="none" stroke="#b8843f" stroke-width="3" />
+  <circle cx="32" cy="32" r="17" fill="none" stroke="#f5b46e" stroke-width="2" />
+  <circle cx="32" cy="32" r="6" fill="#b8843f" />
+</svg>

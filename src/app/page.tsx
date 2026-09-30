@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
+import { CoupleParallax } from '@/components/couple-parallax';
 import { ROUTES, WEDDING_CONFIG } from '@/lib/constants';
 import styles from './page.module.css';
 
@@ -24,8 +25,9 @@ export default function Home() {
 
   return (
     <main className={styles.page}>
+      <CoupleParallax />
       <div className={styles.hero}>
-        <p className={styles.eyebrow}>Nos casamos</p>
+        <p className={styles.eyebrow}>Nuestra Boda</p>
         <h1 className={styles.title}>{WEDDING_CONFIG.title}</h1>
         {dateLabel ? (
           <p className={styles.date}>{dateLabel}</p>
@@ -48,7 +50,7 @@ export default function Home() {
           <span className={styles.step}>1</span>
           <h2>Elige tus fotos</h2>
           <p>
-            Desde el móvil o el ordenador. JPEG, PNG, WebP o HEIC de hasta 25&nbsp;MB por
+            Desde el móvil. JPEG, PNG, WebP o HEIC de hasta 5&nbsp;MB por
             archivo.
           </p>
         </article>
@@ -56,13 +58,12 @@ export default function Home() {
           <span className={styles.step}>2</span>
           <h2>Súbelas aquí mismo</h2>
           <p>
-            Se guardan en nuestro Drive privado, así que las fotos no se pierden ni las ve
-            nadie más.
+            Se guardan en nuestro Drive privado, así que las fotos no se pierden y estaran completamente seguras.
           </p>
         </article>
         <article className="card">
           <span className={styles.step}>3</span>
-          <h2>Míralas todos juntos</h2>
+          <h2>Compartamos todos juntos</h2>
           <p>
             Comparte el enlace o el código QR de la boda con los invitados para que las vean
             al instante.

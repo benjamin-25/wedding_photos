@@ -27,7 +27,7 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #6aad9b;
+    --background: #101046;
     --foreground: #ddb98a;
     --surface: #175a57;
     --surface-muted: #262644;
@@ -99,7 +99,7 @@ select {
   outline-offset: 2px;
 }
 
-@media (prefers-color-scheme: dark) {
+@media (prefers-color-scheme: light) {
   html {
     color-scheme: dark;
   }

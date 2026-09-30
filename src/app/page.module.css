@@ -6,11 +6,17 @@
   gap: 72px;
   padding: 80px 20px;
   text-align: center;
+  /* Los medallones de los novios (parallax) se anclan a esta caja. */
+  position: relative;
 }
 
 .hero {
   max-width: 620px;
   margin: 0 auto;
+  /* Por encima de los medallones (z-index 0) para que el texto nunca quede
+     tapado por las fotos. */
+  position: relative;
+  z-index: 1;
 }
 
 .eyebrow {
@@ -52,6 +58,9 @@
   margin: 0 auto;
   width: 100%;
   text-align: left;
+  /* Igual que .hero: por encima de los medallones del parallax. */
+  position: relative;
+  z-index: 1;
 }
 
 .features article {

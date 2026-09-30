@@ -72,7 +72,7 @@ export default function AdminDashboard() {
   }, []);
 
   return (
-    <>
+    <div className={styles.box}>
       <section className={styles.stats} aria-label="Resumen">
         <div className="card">
           <p className={styles.statLabel}>Fotos</p>
@@ -106,12 +106,12 @@ export default function AdminDashboard() {
         </p>
       ) : null}
 
-      {!stats?.driveConnected && !statsError ? (
+      {/* {!stats?.driveConnected && !statsError ? (
         <p className={styles.banner} role="status">
           Google Drive no está configurado. Copia <code>.env.local.example</code> a{' '}
           <code>.env.local</code> y completa las credenciales.
         </p>
-      ) : null}
+      ) : null} */}
 
       <section className={styles.columns}>
         <Uploader onComplete={handleUploadResult} onNotify={notify} />
@@ -147,6 +147,6 @@ export default function AdminDashboard() {
           </div>
         ))}
       </div>
-    </>
+    </div>
   );
 }
