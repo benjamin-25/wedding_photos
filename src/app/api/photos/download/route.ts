@@ -3,7 +3,8 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/auth';
-import { APP_CONFIG, WEDDING_CONFIG } from '@/lib/constants';
+import { APP_CONFIG } from '@/lib/constants';
+import { getWeddingConfig } from '@/lib/env';
 import {
   getPhotoMetadata,
   getPhotoStream,
@@ -26,8 +27,8 @@ function sanitizeForZip(name: string): string {
 function buildSlug(): string {
   // NFD separa las vocales acentuadas de su marca combinante, que se elimina
   // para dejar un nombre de fichero limpio ("Nuestra Boda" -> "nuestra-boda").
-  const slug = WEDDING_CONFIG.title
-    .toLowerCase()
+  const slug = getWeddingConfig()
+    .title.toLowerCase()
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .replace(/[^a-z0-9]+/g, '-')

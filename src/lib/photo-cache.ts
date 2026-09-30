@@ -1,8 +1,8 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
-import os from 'node:os';
 import path from 'node:path';
 import { APP_CONFIG } from '@/lib/constants';
+import { getPhotoCacheConfig } from '@/lib/env';
 import type { PhotoSize } from '@/lib/constants';
 
 /** Únicas variantes que se guardan en disco. `full` va en streaming y no se cachea. */
@@ -30,17 +30,18 @@ export type CacheableSize = Exclude<PhotoSize, 'full'>;
  * funcionando exactamente igual.
  */
 
-/** `PHOTO_CACHE=off` desactiva la caché por completo. */
-const CACHE_ENABLED = process.env.PHOTO_CACHE !== 'off';
-
 /**
- * Por defecto en el directorio temporal, que es lo único escribible en
- * Vercel. En un servidor propio conviene apuntar a un disco persistente
- * (`PHOTO_CACHE_DIR=/var/cache/wedding-photos`) para que sobreviva a un
- * reinicio y lo sirva también tras un despliegue.
+ * Configuración de la caché leída por llamada desde `getPhotoCacheConfig()`.
+ *
+ * Antes eran dos constantes de módulo (`CACHE_ENABLED` y `CACHE_ROOT`), lo que
+ * fijaba los valores en el instante de importar el fichero: un `PHOTO_CACHE=off`
+ * o un `PHOTO_CACHE_DIR` nuevo no se aplicaban hasta reiniciar el servidor.
+ * Leyéndolo por llamada, además, una misma instancia del módulo respeta los
+ * cambios de configuración sin quedarse con un valor caduco.
  */
-const CACHE_ROOT =
-  process.env.PHOTO_CACHE_DIR || path.join(os.tmpdir(), 'wedding-photo-cache');
+function cacheConfig(): { enabled: boolean; dir: string } {
+  return getPhotoCacheConfig();
+}
 
 /** Firma de cada variante, para invalidar la caché si cambian sus parámetros. */
 const VARIANT_REVISION: Record<CacheableSize, string> = {
@@ -61,7 +62,7 @@ function keyFor(id: string, size: CacheableSize): { dir: string; hash: string } 
     .digest('hex');
   // Se reparte en subdirectorios de dos caracteres para no acabar con miles
   // de entradas en un mismo directorio.
-  return { dir: path.join(CACHE_ROOT, hash.slice(0, 2)), hash };
+  return { dir: path.join(cacheConfig().dir, hash.slice(0, 2)), hash };
 }
 
 /**
@@ -100,7 +101,7 @@ export async function readVariant(
   id: string,
   size: CacheableSize
 ): Promise<CachedVariant | null> {
-  if (!CACHE_ENABLED) return null;
+  if (!cacheConfig().enabled) return null;
 
   const { dir, hash } = keyFor(id, size);
   if (!(await ensureUsable(dir))) return null;
@@ -128,7 +129,7 @@ export async function writeVariant(
   data: Buffer,
   mimeType: string
 ): Promise<void> {
-  if (!CACHE_ENABLED) return;
+  if (!cacheConfig().enabled) return;
 
   const { dir, hash } = keyFor(id, size);
   if (!(await ensureUsable(dir))) return;

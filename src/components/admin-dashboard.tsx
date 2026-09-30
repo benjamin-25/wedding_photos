@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { signOut } from 'next-auth/react';
-import { ROUTES, WEDDING_CONFIG } from '@/lib/constants';
+import { ROUTES } from '@/lib/constants';
 import { generateId } from '@/lib/utils';
 import type { AppStats, Toast, UploadResponse } from '@/types';
 import Uploader from './uploader';
@@ -11,7 +11,21 @@ import FolderConfig from './folder-config';
 import ShareCard from './share-card';
 import styles from './admin-dashboard.module.css';
 
-export default function AdminDashboard() {
+/**
+ * `title` y `galleryUrl` llegan como props desde `AdminPage`, que es un
+ * componente de servidor. Antes este componente leía `WEDDING_TITLE` y
+ * `APP_URL` directamente: al ser un componente de cliente, Next.js las
+ * sustituía por `undefined` al compilar el bundle y el código QR salía con una
+ * ruta relativa, mientras las páginas del servidor mostraban el título sin
+ * problema. Que las variables se leyeran "a veces" dependía de quién preguntara.
+ */
+export default function AdminDashboard({
+  title,
+  galleryUrl,
+}: {
+  title: string;
+  galleryUrl: string;
+}) {
   const [stats, setStats] = useState<AppStats | null>(null);
   const [statsError, setStatsError] = useState<string | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -116,10 +130,7 @@ export default function AdminDashboard() {
       <section className={styles.columns}>
         <Uploader onComplete={handleUploadResult} onNotify={notify} />
 
-        <ShareCard
-          title={WEDDING_CONFIG.title}
-          url={`${WEDDING_CONFIG.appUrl}${ROUTES.GALLERY}`}
-        />
+        <ShareCard title={title} url={galleryUrl} />
       </section>
 
       <FolderConfig

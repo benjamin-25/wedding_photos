@@ -1,7 +1,9 @@
 import Link from 'next/link';
+import { connection } from 'next/server';
 import type { Metadata } from 'next';
 import { CoupleParallax } from '@/components/couple-parallax';
-import { ROUTES, WEDDING_CONFIG } from '@/lib/constants';
+import { ROUTES } from '@/lib/constants';
+import { getWeddingConfig } from '@/lib/env';
 import styles from './page.module.css';
 
 export const metadata: Metadata = {
@@ -20,15 +22,21 @@ function formatWeddingDate(value: string): string | null {
   });
 }
 
-export default function Home() {
-  const dateLabel = formatWeddingDate(WEDDING_CONFIG.date);
+export default async function Home() {
+  // Sin esto la página se prerenderiza en `next build` y el título y la fecha
+  // se congelan con los valores que hubiera en el entorno de compilación:
+  // cambiar `WEDDING_TITLE` en el despliegue no se notaba hasta un rebuild.
+  await connection();
+
+  const { title, date } = getWeddingConfig();
+  const dateLabel = formatWeddingDate(date);
 
   return (
     <main className={styles.page}>
       <CoupleParallax />
       <div className={styles.hero}>
         <p className={styles.eyebrow}>Nuestra Boda</p>
-        <h1 className={styles.title}>{WEDDING_CONFIG.title}</h1>
+        <h1 className={styles.title}>{title}</h1>
         {dateLabel ? (
           <p className={styles.date}>{dateLabel}</p>
         ) : (

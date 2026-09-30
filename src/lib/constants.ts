@@ -20,11 +20,17 @@ export function isPhotoSize(value: string | null | undefined): value is PhotoSiz
   return PHOTO_SIZES.includes(value as PhotoSize);
 }
 
-export const WEDDING_CONFIG = {
-  title: process.env.NEXT_WEDDING_TITLE || 'Nuestra Boda',
-  date: process.env.NEXT_WEDDING_DATE || '',
-  appUrl: process.env.NEXT_APP_URL,
-} as const;
+/**
+ * Este módulo no lee `process.env`, y es a propósito.
+ *
+ * Antes lo hacía, y como `WEDDING_CONFIG` se construía al importar el fichero,
+ * todo componente de cliente que lo importara recibía `undefined` en el
+ * navegador: las páginas del servidor mostraban el título de la boda y las
+ * variables de entorno aparecían "a veces" sin aplicarse, según desde dónde se
+ * leyera. Los valores de entorno salen ahora de `getWeddingConfig()` en
+ * `@/lib/env`, que es un módulo de servidor, y de ahí se pasan a los
+ * componentes de cliente como props.
+ */
 
 export type SocialIconName = 'linkedin' | 'github' | 'instagram' | 'x' | 'email';
 
@@ -94,5 +100,6 @@ export const ROUTES = {
     DOWNLOAD: '/api/photos/download',
     FOLDERS: '/api/drive/folders',
     STATS: '/api/drive/stats',
+    ENV: '/api/drive/env',
   },
 } as const;

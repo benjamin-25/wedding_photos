@@ -1,4 +1,5 @@
 import { google, drive_v3 } from 'googleapis';
+import { getDriveConfig, getDriveFolderId, isDriveConfigured } from '@/lib/env';
 
 /**
  * Cliente de Google Drive autenticado con OAuth 2.0 en nombre de una persona.
@@ -13,8 +14,22 @@ import { google, drive_v3 } from 'googleapis';
  *
  * La identidad vive en `GOOGLE_REFRESH_TOKEN`, no en la sesión: la galería
  * pública la consultan invitados sin sesión, así que el cliente se construye
- * siempre a partir de las variables de entorno.
+ * siempre a partir de las variables de entorno, que se leen en
+ * `getDriveConfig()` (`src/lib/env.ts`).
+ *
+ * Se reexportan `getFolderId` e `isDriveConfigured` para no obligar a cambiar
+ * los import en toda la aplicación.
  */
+
+export { isDriveConfigured };
+
+/**
+ * Carpeta de Drive con la que se trabaja: la que envía la petición si la
+ * envía, o la de `GOOGLE_DRIVE_FOLDER_ID`.
+ */
+export function getFolderId(folderId?: string): string {
+  return getDriveFolderId(folderId);
+}
 
 // Un cliente por refresh token. La librería renueva el access token por su
 // cuenta cuando caduca (1 hora), así que basta con conservar el cliente entre
@@ -22,40 +37,15 @@ import { google, drive_v3 } from 'googleapis';
 const driveClients = new Map<string, drive_v3.Drive>();
 
 /**
- * Devuelve el refresh token que identifica al administrador de Drive.
- */
-function getRefreshToken(): string {
-  const refreshToken = process.env.GOOGLE_REFRESH_TOKEN?.trim();
-
-  if (!refreshToken) {
-    throw new Error(
-      'Configuración de Google Drive incompleta: falta GOOGLE_REFRESH_TOKEN en las variables de entorno. ' +
-        'Genéralo con `npm run drive:token` siguiendo las instrucciones del README.'
-    );
-  }
-
-  return refreshToken;
-}
-
-/**
  * Inicializa y devuelve el cliente de Google Drive utilizando las credenciales
  * OAuth configuradas en las variables de entorno.
  */
 export function getDriveClient(): drive_v3.Drive {
-  const refreshToken = getRefreshToken();
+  const { clientId, clientSecret, refreshToken } = getDriveConfig();
 
   const cached = driveClients.get(refreshToken);
   if (cached) {
     return cached;
-  }
-
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-
-  if (!clientId || !clientSecret) {
-    throw new Error(
-      'Configuración de Google Drive incompleta: faltan GOOGLE_CLIENT_ID o GOOGLE_CLIENT_SECRET en las variables de entorno'
-    );
   }
 
   // El refresh token no se puede pasar al constructor: se inyecta con
@@ -67,25 +57,6 @@ export function getDriveClient(): drive_v3.Drive {
   const client = google.drive({ version: 'v3', auth });
   driveClients.set(refreshToken, client);
   return client;
-}
-
-/**
- * Obtiene el ID de la carpeta desde el parámetro o desde la variable de entorno GOOGLE_DRIVE_FOLDER_ID.
- */
-export function getFolderId(folderId?: string): string {
-  return folderId || process.env.GOOGLE_DRIVE_FOLDER_ID || '';
-}
-
-/**
- * Verifica si las variables de entorno esenciales de Google Drive están configuradas.
- */
-export function isDriveConfigured(): boolean {
-  return Boolean(
-    process.env.GOOGLE_CLIENT_ID &&
-      process.env.GOOGLE_CLIENT_SECRET &&
-      process.env.GOOGLE_REFRESH_TOKEN &&
-      process.env.GOOGLE_DRIVE_FOLDER_ID
-  );
 }
 
 /**

@@ -21,10 +21,15 @@
 // Google directamente.
 
 import { createServer } from 'node:http';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
 import { exec } from 'node:child_process';
+import nextEnv from '@next/env';
+
+// `@next/env` es el mismo cargador con el que Next rellena `process.env` desde
+// los ficheros `.env*`. Antes este script se leía `.env.local` a mano, con dos
+// diferencias que rompían el canje del token: no quitaba las comillas de un
+// valor entrecomillado, y se saltaba `.env` y `.env.development`. Ahora el
+// script ve exactamente las mismas variables que la aplicación.
+const { loadEnvConfig } = nextEnv;
 
 const PORT = 8765;
 const REDIRECT_URI = `http://localhost:${PORT}`;
@@ -32,25 +37,6 @@ const SCOPE = 'https://www.googleapis.com/auth/drive';
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const ABOUT_URL = 'https://www.googleapis.com/drive/v3/about?fields=user,storageQuota';
-
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-
-function loadEnvLocal() {
-  let raw;
-  try {
-    raw = readFileSync(join(ROOT, '.env.local'), 'utf8');
-  } catch {
-    return;
-  }
-
-  for (const line of raw.split(/\r?\n/)) {
-    if (!line || line.trim().startsWith('#') || !line.includes('=')) continue;
-    const i = line.indexOf('=');
-    const key = line.slice(0, i).trim();
-    const value = line.slice(i + 1).trim();
-    if (!(key in process.env)) process.env[key] = value;
-  }
-}
 
 function openBrowser(url) {
   const [command, args] =
@@ -99,7 +85,7 @@ async function describeAccount(accessToken) {
   return response.json();
 }
 
-loadEnvLocal();
+loadEnvConfig(process.cwd(), false);
 
 if (typeof fetch !== 'function') {
   console.error('Este script necesita Node 18 o superior (no encuentra `fetch`).');

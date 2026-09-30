@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { getFolderStats, isDriveConfigured } from '@/lib/google-drive';
+import { getFolderStats, getFolderId, isDriveConfigured } from '@/lib/google-drive';
 import { formatFileSize } from '@/lib/utils';
 import type { AppStats } from '@/types';
 
@@ -34,7 +34,7 @@ export async function GET() {
     const body: AppStats = {
       totalPhotos,
       totalSize: formatFileSize(totalSize),
-      folderId: process.env.GOOGLE_DRIVE_FOLDER_ID || '',
+      folderId: getFolderId(),
       folderName,
       lastUpload: new Date().toISOString(),
       driveConnected: true,

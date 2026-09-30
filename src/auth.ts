@@ -1,5 +1,6 @@
 import NextAuth from 'next-auth';
 import Google from 'next-auth/providers/google';
+import { getAdminEmail, getEnvVar } from '@/lib/env';
 
 /**
  * Autenticación del panel de administración mediante la cuenta de Google del
@@ -47,11 +48,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true,
   providers: [
     Google({
-      // Se pasan explícitos para que las mismas credenciales sirvan tanto para
-      // el login como para las llamadas a Drive, en lugar de depender de las
-      // variables `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET`.
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      // Se leen de `src/lib/env.ts` para que las mismas credenciales sirvan
+      // tanto para el login como para las llamadas a Drive, en lugar de
+      // depender de las variables `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET`, y
+      // para que el valor salga limpio de comillas y espacios.
+      clientId: getEnvVar('GOOGLE_CLIENT_ID'),
+      clientSecret: getEnvVar('GOOGLE_CLIENT_SECRET'),
       authorization: {
         params: {
           scope: GOOGLE_SCOPES,
@@ -78,7 +80,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
      * `ADMIN_EMAIL`.
      */
     async signIn({ user }) {
-      const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+      const adminEmail = getAdminEmail();
 
       if (!adminEmail) {
         console.warn(

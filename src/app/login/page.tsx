@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { auth } from '@/auth';
-import { ROUTES, WEDDING_CONFIG } from '@/lib/constants';
+import { ROUTES } from '@/lib/constants';
+import { getWeddingConfig } from '@/lib/env';
 import LoginForm from './login-form';
 import styles from './login.module.css';
 
@@ -27,10 +28,14 @@ export default async function LoginPage({
       ? callbackUrl
       : ROUTES.ADMIN;
 
+  // `auth()` ya usa datos de la petición, así que la página es dinámica y el
+  // título se lee ahora, no en el prerender.
+  const { title } = getWeddingConfig();
+
   return (
     <main className={styles.page}>
       <div className={styles.card}>
-        <p className={styles.eyebrow}>{WEDDING_CONFIG.title}</p>
+        <p className={styles.eyebrow}>{title}</p>
         <h1 className={styles.title}>Acceso de administración</h1>
         <p className={styles.subtitle}>
           Esta zona es solo para subir y gestionar las fotos de la boda.

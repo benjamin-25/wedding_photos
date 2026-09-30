@@ -40,8 +40,3 @@ export function generateId(): string {
 export function cn(...classes: (string | undefined | false | null)[]): string {
   return classes.filter(Boolean).join(' ');
 }
-
-export function getGalleryUrl(): string {
-  const baseUrl = process.env.NEXT_APP_URL || '';
-  return `${baseUrl}/gallery`;
-}

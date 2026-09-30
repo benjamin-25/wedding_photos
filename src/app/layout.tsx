@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Playfair_Display } from "next/font/google";
 import { Footer } from "@/components/footer";
-import { WEDDING_CONFIG } from "@/lib/constants";
+import { getWeddingConfig } from "@/lib/env";
 import "./globals.css";
 
 // Serif para los títulos (Playfair Display) y sans para el texto (Inter),
@@ -17,14 +17,24 @@ const inter = Inter({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: {
-    default: WEDDING_CONFIG.title,
-    template: `%s · ${WEDDING_CONFIG.title}`,
-  },
-  description:
-    "Galería fotográfica de la boda. Sube tus fotos y comparte los recuerdos con todos los invitados.",
-};
+/**
+ * `WEDDING_TITLE` se lee aquí y no en un `export const metadata` de nivel de
+ * módulo: el layout se evalúa al arrancar el servidor, y un despliegue que
+ * cambia la variable en el panel no llegaría a verse hasta el siguiente
+ * despliegue. `generateMetadata` corre en cada petición.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const { title } = getWeddingConfig();
+
+  return {
+    title: {
+      default: title,
+      template: `%s · ${title}`,
+    },
+    description:
+      "Galería fotográfica de la boda. Sube tus fotos y comparte los recuerdos con todos los invitados.",
+  };
+}
 
 export default function RootLayout({
   children,
