@@ -62,7 +62,7 @@ export default async function AdminPage() {
             Inicio
           </Link>
           <form action={logOut}>
-            <button className="btn btn-ghost" type="submit">
+            <button className="btn btn-danger" type="submit">
               Cerrar sesión
             </button>
           </form>

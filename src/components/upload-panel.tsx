@@ -104,7 +104,7 @@ export default function UploadPanel({ title }: { title: string }) {
             action={() => signOut({ redirectTo: ROUTES.HOME })}
             className={styles.signOut}
           >
-            <button className="btn btn-ghost" type="submit">
+            <button className="btn btn-danger" type="submit">
               Cerrar sesión
             </button>
           </form>
