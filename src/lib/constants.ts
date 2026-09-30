@@ -21,9 +21,9 @@ export function isPhotoSize(value: string | null | undefined): value is PhotoSiz
 }
 
 export const WEDDING_CONFIG = {
-  title: process.env.NEXT_PUBLIC_WEDDING_TITLE || 'Nuestra Boda',
-  date: process.env.NEXT_PUBLIC_WEDDING_DATE || '',
-  appUrl: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+  title: process.env.NEXT_WEDDING_TITLE || 'Nuestra Boda',
+  date: process.env.NEXT_WEDDING_DATE || '',
+  appUrl: process.env.NEXT_APP_URL || 'http://localhost:3000',
 } as const;
 
 export type SocialIconName = 'linkedin' | 'github' | 'instagram' | 'x' | 'email';
