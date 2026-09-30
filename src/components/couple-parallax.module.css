@@ -8,7 +8,7 @@
   height: 200px;
   border-radius: 50%;
   overflow: hidden;
-  border: 3px solid var(--gold);
+  border: 3px hidden var(--gold);
   box-shadow: var(--shadow-lg);
   will-change: transform;
 }

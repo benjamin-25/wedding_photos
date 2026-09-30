@@ -3,7 +3,7 @@
   --gold: #f5b46e;
   --cream: #cfc0ae;
   --blush: #f5e6e0;
-  --ink: #aca9a9;
+  --ink: #4bad86;
 
   --background: var(--cream);
   --foreground: var(--ink);
@@ -19,8 +19,8 @@
 
   --radius: 14px;
   --radius-sm: 9px;
-  --shadow: 0 1px 2px rgb(26 26 46 / 0.05), 0 8px 24px rgb(26 26 46 / 0.06);
-  --shadow-lg: 0 8px 40px rgb(26 26 46 / 0.16);
+  --shadow: 0 8px 20px rgba(35, 102, 79, 0.16), 0 8px 24px rgba(20, 82, 60, 0.16);
+  --shadow-lg: 0 8px 80px rgba(55, 186, 140, 0.16), 0 30px 80px rgba(55, 186, 140, 0.16);
   /* Radio de cristal para los paneles con backdrop-filter */
   --glass-blur: 14px;
 }

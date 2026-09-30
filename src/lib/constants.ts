@@ -69,11 +69,11 @@ export const CREDITS_CONFIG = {
 export const COUPLE_CONFIG = {
   /** Velocidad del parallax: 0 = fija, 1 = se mueve como el contenido. */
   speed: 0.35,
-  left: {
+  right: {
     src: '/novio-cara.webp',
     alt: 'Fotografía de Daniel',
   },
-  right: {
+  left: {
     src: '/novia-cara.webp',
     alt: 'Fotografía de Tatiana',
   },
