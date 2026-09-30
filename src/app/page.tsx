@@ -5,7 +5,7 @@ import { ROUTES, WEDDING_CONFIG } from '@/lib/constants';
 import styles from './page.module.css';
 
 export const metadata: Metadata = {
-  title: 'Inicio',
+  title: 'Wedding-photos-app',
 };
 
 function formatWeddingDate(value: string): string | null {
