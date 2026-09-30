@@ -1,6 +1,7 @@
 import NextAuth from 'next-auth';
 import Google from 'next-auth/providers/google';
-import { getAdminEmail, getEnvVar } from '@/lib/env';
+import { getRoles, isRestricted } from '@/lib/access';
+import { getEnvVar } from '@/lib/env';
 
 /**
  * Autenticación del panel de administración mediante la cuenta de Google del
@@ -16,29 +17,28 @@ import { getAdminEmail, getEnvVar } from '@/lib/env';
  */
 
 /**
- * Alcance solicitado a la API de Drive.
+ * Alcance solicitado a Google en el login: solo identidad.
  *
- * Se pide el alcance `drive` completo y no el restringido `drive.file` a
- * propósito: la galería tiene que leer y borrar las fotos que ya había en la
- * carpeta, que son anteriores a la aplicación. `drive.file` solo concede acceso
- * a los ficheros que la propia app crea o abre, así que las fotos antiguas
- * desaparecerían de la galería.
- */
-const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive';
-
-/**
- * Alcance total de la petición a Google.
+ * Antes pedía además `https://www.googleapis.com/auth/drive`, y sobraba. El
+ * acceso a Drive no viene de la sesión sino de `GOOGLE_REFRESH_TOKEN` (ver
+ * `src/lib/google-drive.ts`), así que ese scope no lo usaba nadie y solo
+ * abultaba la pantalla de consentimiento, que es justo lo que asusta a quien va
+ * a autorizar por primera vez.
+ *
+ * Que las fotos ya existentes sigan siendo accesibles tampoco depende de
+ * aquí: es cosa del token de refresco, que sí va con `drive` completo porque la
+ * galería tiene que leer y borrar archivos anteriores a la aplicación.
  *
  * Los tres scopes OIDC **no son opcionales**: el proveedor de Auth.js es de
- * tipo `oidc` y saca el perfil del usuario del `id_token`. Si `scope` solo
- * lleva `drive`, Google no emite `id_token` y el callback `signIn` recibe
- * `user.email === undefined`, así que la comprobación contra `ADMIN_EMAIL`
- * siempre falla y nadie puede entrar.
+ * tipo `oidc` y saca el perfil del usuario del `id_token`. Si `scope` quedara
+ * vacío, Google no emitiría `id_token` y el callback `signIn` recibiría
+ * `user.email === undefined`, así que la comprobación de siempre fallaría y
+ * nadie podría entrar.
  *
  * Al definir `scope` a mano se sustituye la lista por defecto del proveedor,
  * de ahí que haya que incluir aquí los scopes OIDC.
  */
-const GOOGLE_SCOPES = [DRIVE_SCOPE, 'openid', 'email', 'profile'].join(' ');
+const GOOGLE_SCOPES = ['openid', 'email', 'profile'].join(' ');
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   // `next start` no marca ningún host como de confianza y el login falla con
@@ -75,28 +75,40 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   callbacks: {
     /**
-     * Solo entra la cuenta del administrador. Google ya garantiza que el email
-     * de la cuenta está verificado, así que basta con compararlo con
-     * `ADMIN_EMAIL`.
+     * Puerta de entrada: sin sesión no hay nada que comprobar, así que aquí solo
+     * se pregunta si la cuenta tiene algún rol. Los permisos concretos los
+     * aplican `src/lib/access.ts` en cada página y cada ruta.
+     *
+     * Google ya garantiza que el email viene verificado, así que comparar
+     * contra las listas basta.
+     *
+     * La regla es: si no hay ninguna lista definida entra cualquiera, y en
+     * cuanto se define una sola ya no entra quien no esté en ella. Un clon
+     * recién bajado arranca sin bloquear a nadie, pero tan pronto como se
+     * declara la primera cuenta la aplicación deja de estar abierta. Lo
+     * contrario —cerrar en cuanto se declara una— dejaría a un despliegue mal
+     * configurado sin puerta por la que ni siquiera ver el error.
      */
     async signIn({ user }) {
-      const adminEmail = getAdminEmail();
-
-      if (!adminEmail) {
+      if (!isRestricted()) {
         console.warn(
-          '[auth] ADMIN_EMAIL no está definido: se permite el acceso a cualquier cuenta de Google. ' +
-            'Define ADMIN_EMAIL para restringirlo.'
+          '[auth] Ni ADMIN_EMAIL ni UPLOAD_EMAILS están definidos: entra cualquier cuenta de ' +
+            'Google. Define al menos ADMIN_EMAIL para restringir el acceso.'
         );
         return true;
       }
 
-      if (user.email?.toLowerCase() !== adminEmail) {
+      const roles = getRoles(user.email);
+
+      if (roles.length === 0) {
         console.warn(
-          `[auth] Acceso denegado a ${user.email ?? 'cuenta desconocida'}: no coincide con ADMIN_EMAIL.`
+          `[auth] Acceso denegado a ${user.email ?? 'cuenta desconocida'}: no figura en ` +
+            'ADMIN_EMAIL ni en UPLOAD_EMAILS.'
         );
         return false;
       }
 
+      console.log(`[auth] Acceso concedido a ${user.email} como ${roles.join(' + ')}.`);
       return true;
     },
     async jwt({ token, user }) {

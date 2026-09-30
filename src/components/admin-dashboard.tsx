@@ -1,11 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { signOut } from 'next-auth/react';
 import { ROUTES } from '@/lib/constants';
 import { generateId } from '@/lib/utils';
-import type { AppStats, Toast, UploadResponse } from '@/types';
-import Uploader from './uploader';
+import type { AppStats, Toast } from '@/types';
 import PhotoManager from './photo-manager';
 import FolderConfig from './folder-config';
 import ShareCard from './share-card';
@@ -68,19 +66,6 @@ export default function AdminDashboard({
     };
   }, [revision]);
 
-  const handleUploadResult = useCallback(
-    (response: UploadResponse) => {
-      if (response.uploaded.length > 0) {
-        notify(`${response.uploaded.length} foto(s) subidas correctamente.`);
-        setRevision((r) => r + 1);
-      }
-      for (const failure of response.errors) {
-        notify(`${failure.fileName}: ${failure.error}`, 'error');
-      }
-    },
-    [notify]
-  );
-
   const handleDeleted = useCallback(() => {
     setRevision((r) => r + 1);
   }, []);
@@ -120,16 +105,14 @@ export default function AdminDashboard({
         </p>
       ) : null}
 
-      {/* {!stats?.driveConnected && !statsError ? (
+      {!stats?.driveConnected && !statsError ? (
         <p className={styles.banner} role="status">
           Google Drive no está configurado. Copia <code>.env.local.example</code> a{' '}
           <code>.env.local</code> y completa las credenciales.
         </p>
-      ) : null} */}
+      ) : null}
 
       <section className={styles.columns}>
-        <Uploader onComplete={handleUploadResult} onNotify={notify} />
-
         <ShareCard title={title} url={galleryUrl} />
       </section>
 
@@ -144,12 +127,6 @@ export default function AdminDashboard({
         onDeleted={handleDeleted}
         onNotify={notify}
       />
-
-      <form action={() => signOut({ redirectTo: ROUTES.LOGIN })} className={styles.signOut}>
-        <button className="btn btn-ghost" type="submit">
-          Cerrar sesión
-        </button>
-      </form>
 
       <div className={styles.toasts} aria-live="polite">
         {toasts.map((toast) => (

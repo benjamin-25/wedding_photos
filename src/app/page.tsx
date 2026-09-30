@@ -1,24 +1,26 @@
-import Link from 'next/link';
-import { connection } from 'next/server';
-import type { Metadata } from 'next';
-import { CoupleParallax } from '@/components/couple-parallax';
-import { ROUTES } from '@/lib/constants';
-import { getWeddingConfig } from '@/lib/env';
-import styles from './page.module.css';
+import Link from "next/link";
+import { connection } from "next/server";
+import type { Metadata } from "next";
+import { CoupleParallax } from "@/components/couple-parallax";
+import { ROUTES } from "@/lib/constants";
+import { getWeddingConfig } from "@/lib/env";
+import styles from "./page.module.css";
+import { auth } from "@/auth";
+import { isAdmin } from "@/lib/access";
 
 export const metadata: Metadata = {
-  title: 'Wedding-photos-app',
+  title: "Fotos Boda Tatiana & Daniel",
 };
 
 function formatWeddingDate(value: string): string | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
   const date = new Date(`${value}T12:00:00`);
   if (Number.isNaN(date.getTime())) return null;
-  return date.toLocaleDateString('es-ES', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
+  return date.toLocaleDateString("es-ES", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
   });
 }
 
@@ -27,6 +29,10 @@ export default async function Home() {
   // se congelan con los valores que hubiera en el entorno de compilación:
   // cambiar `WEDDING_TITLE` en el despliegue no se notaba hasta un rebuild.
   await connection();
+
+  const session = await auth();
+
+  const isValidAdmin = isAdmin(session?.user?.email);
 
   const { title, date } = getWeddingConfig();
   const dateLabel = formatWeddingDate(date);
@@ -40,16 +46,23 @@ export default async function Home() {
         {dateLabel ? (
           <p className={styles.date}>{dateLabel}</p>
         ) : (
-          <p className={styles.date}>Comparte con nosotros los mejores momentos</p>
+          <p className={styles.date}>
+            Comparte con nosotros los mejores momentos
+          </p>
         )}
 
         <div className={styles.actions}>
           <Link className="btn btn-primary" href={ROUTES.GALLERY}>
             Ver la galería
           </Link>
-          <Link className="btn btn-ghost" href={ROUTES.ADMIN}>
+          <Link className="btn btn-primary" href={ROUTES.UPLOAD}>
             Subir fotos
           </Link>
+          {isValidAdmin && (
+          <Link className="btn btn-primary" href={ROUTES.ADMIN}>
+            Administrar
+          </Link>
+          )}
         </div>
       </div>
 
@@ -66,15 +79,16 @@ export default async function Home() {
           <span className={styles.step}>2</span>
           <h2>Súbelas aquí mismo</h2>
           <p>
-            Se guardan en nuestro Drive privado, así que las fotos no se pierden y estaran completamente seguras.
+            Se guardan en nuestro Drive privado, así que las fotos no se pierden
+            y estaran completamente seguras.
           </p>
         </article>
         <article className="card">
           <span className={styles.step}>3</span>
           <h2>Compartamos todos juntos</h2>
           <p>
-            Comparte el enlace o el código QR de la boda con los invitados para que las vean
-            al instante.
+            Comparte el enlace o el código QR de la boda con los invitados para
+            que las vean al instante.
           </p>
         </article>
       </section>

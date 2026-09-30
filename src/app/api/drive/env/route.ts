@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/auth';
 import { describeEnv, isSecretEnvVar } from '@/lib/env';
+import { authorize, deniedResponse } from '@/lib/require-access';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,10 +20,11 @@ export const dynamic = 'force-dynamic';
  * health check detecte una configuración rota.
  */
 export async function GET() {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: 'No autorizado.' }, { status: 401 });
-  }
+  // Exige `admin` y no `upload` a propósito: este informe dice qué variables
+  // están puestas en el despliegue, y aunque las credenciales salten, la lista
+  // de correos autorizados no debería ser cosa de una cuenta de invitado.
+  const denied = await authorize('admin');
+  if (denied) return deniedResponse(denied);
 
   const report = describeEnv();
 

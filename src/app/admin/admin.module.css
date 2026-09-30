@@ -31,6 +31,17 @@
   flex-wrap: wrap;
 }
 
+/*
+ * El cierre de sesión es un `<form>` porque esta página es un Server Component
+ * y no admite `onClick`. `display: contents` hace que el form deje de ser un
+ * elemento del flex y el botón ocupe su sitio: si no, el form se convierte en
+ * un bloque, los `gap` dejan de aplicarse igual y el botón queda descolgado del
+ * resto de acciones.
+ */
+.headerActions form {
+  display: contents;
+}
+
 @media (max-width: 560px) {
   .headerActions {
     width: 100%;

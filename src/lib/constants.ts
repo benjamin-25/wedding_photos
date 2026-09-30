@@ -89,7 +89,9 @@ export const ROUTES = {
   HOME: '/',
   GALLERY: '/gallery',
   ADMIN: '/admin',
+  UPLOAD: '/upload',
   LOGIN: '/login',
+  UNAUTHORIZED: '/no-autorizado',
   API: {
     PHOTOS: '/api/photos',
     ALBUMS: '/api/photos/albums',

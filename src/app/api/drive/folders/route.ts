@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { auth } from '@/auth';
 import { isDriveConfigured, listFolders } from '@/lib/google-drive';
+import { authorize, deniedResponse } from '@/lib/require-access';
 import type { DriveFolder } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -12,10 +12,10 @@ export const dynamic = 'force-dynamic';
  * Query opcional: `parentId`.
  */
 export async function GET(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: 'No autorizado.' }, { status: 401 });
-  }
+  // Exige `admin`: recorrer el árbol de carpetas del Drive de los novios no es
+  // parte de subir fotos, aunque por URL sea tan fácil de pedir como la subida.
+  const denied = await authorize('admin');
+  if (denied) return deniedResponse(denied);
 
   if (!isDriveConfigured()) {
     return NextResponse.json({ error: 'Google Drive no está configurado.' }, { status: 503 });

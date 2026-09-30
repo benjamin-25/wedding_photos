@@ -7,9 +7,16 @@ import { ROUTES } from '@/lib/constants';
  * Proxy de Next.js 16 (antes `middleware`). Protege las páginas del panel de
  * administración y redirige a `/login` conservando la URL de destino.
  *
- * La autorización de las rutas API NO se delega aquí: los Route Handlers
- * verifican la sesión por sí mismos, ya que el proxy se ejecuta aparte del
- * runtime de la aplicación.
+* Dos cosas que este fichero NO hace, a propósito:
+ *
+ * 1. No decide el rol. Solo pregunta si hay sesión. Quien entra a /admin sin
+ *    ser administrador lo detecta la propia página y lo lleva a
+ *    /no-autorizado. Poner aquí la comprobación de rol obligaría a mantener la
+ *    misma regla en dos sitios, y es así como aparecen permisos que nadie ha
+ *    concedido: uno de los dos se queda sin actualizar.
+ * 2. No autoriza las rutas API. Los Route Handlers se comprueban por sí mismos
+ *    con `src/lib/require-access.ts`, ya que el proxy se ejecuta aparte del
+ *    runtime de la aplicación.
  */
 export const proxy = auth((request: NextAuthRequest) => {
   if (!request.auth) {
@@ -22,5 +29,8 @@ export const proxy = auth((request: NextAuthRequest) => {
 });
 
 export const config = {
-  matcher: ['/admin/:path*'],
+  // `/upload` también va aquí: el panel de subida es parte de la administración.
+  // `/api/photos/upload` comprueba la sesión por su cuenta, pero la página en sí
+  // no debe ser accesible sin entrar.
+  matcher: ['/admin/:path*', '/upload/:path*'],
 };

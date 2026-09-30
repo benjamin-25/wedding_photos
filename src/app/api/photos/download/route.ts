@@ -2,7 +2,6 @@ import JSZip from 'jszip';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { auth } from '@/auth';
 import { APP_CONFIG } from '@/lib/constants';
 import { getWeddingConfig } from '@/lib/env';
 import {
@@ -12,6 +11,7 @@ import {
   listPhotos,
 } from '@/lib/google-drive';
 import { mapWithConcurrency } from '@/lib/photos';
+import { authorize, deniedResponse } from '@/lib/require-access';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -180,10 +180,8 @@ export async function POST(request: NextRequest) {
  * Query opcional: `folderId`, `limit`.
  */
 export async function GET(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: 'No autorizado.' }, { status: 401 });
-  }
+  const denied = await authorize('admin');
+  if (denied) return deniedResponse(denied);
 
   if (!isDriveConfigured()) {
     return NextResponse.json({ error: 'Google Drive no está configurado.' }, { status: 503 });

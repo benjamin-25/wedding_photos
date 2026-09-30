@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/auth';
 import { deletePhoto, getPhotoMetadata, isDriveConfigured } from '@/lib/google-drive';
 import { toPhoto } from '@/lib/photos';
+import { authorize, deniedResponse } from '@/lib/require-access';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,16 +35,17 @@ export async function GET(
 /**
  * DELETE /api/photos/[id]
  * Elimina permanentemente una foto de Google Drive. Solo administradores.
+ *
+ * Es una operación irreversible sobre el Drive de los novios, así que pide
+ * `admin` y no `upload`. Que el proxy proteja `/admin` no sirve aquí: esta ruta
+ * está fuera de él y es alcanzable directamente por su URL.
  */
 export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  // El proxy solo cubre /admin, así que esta ruta se autoriza aquí.
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: 'No autorizado.' }, { status: 401 });
-  }
+  const denied = await authorize('admin');
+  if (denied) return deniedResponse(denied);
 
   const { id } = await params;
   if (!id) {

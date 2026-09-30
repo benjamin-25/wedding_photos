@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { auth } from '@/auth';
 import { APP_CONFIG } from '@/lib/constants';
 import { isDriveConfigured, uploadPhoto } from '@/lib/google-drive';
 import { mapWithConcurrency } from '@/lib/photos';
+import { authorize, deniedResponse } from '@/lib/require-access';
 import type { PhotoMetadata, UploadError, UploadResponse } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -14,16 +14,17 @@ const MAX_FILES_PER_REQUEST = 50;
 
 /**
  * POST /api/photos/upload
- * Sube una o varias imágenes a Google Drive. Solo administradores.
+ * Sube una o varias imágenes a Google Drive.
+ *
+ * Es la única operación que puede hacer un `uploader`: es a lo que da acceso la
+ * lista `UPLOAD_EMAILS`. Todo lo demás del panel queda reservado a `admin`.
  *
  * Acepta `multipart/form-data` con uno o varios campos llamados `files`
  * (y opcionalmente `folderId`).
  */
 export async function POST(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: 'No autorizado.' }, { status: 401 });
-  }
+  const denied = await authorize('upload');
+  if (denied) return deniedResponse(denied);
 
   if (!isDriveConfigured()) {
     return NextResponse.json(

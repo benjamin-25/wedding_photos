@@ -1,0 +1,12 @@
+.box {
+  margin: 0px 30px;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin: 0 30px 50px;
+}

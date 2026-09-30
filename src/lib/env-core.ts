@@ -62,6 +62,15 @@ interface VarSpec {
    * ejemplo, son ajustes y no bloquean nada.
    */
   optional?: boolean;
+  /**
+   * Valor con varias entradas separadas por comas, punto y coma o espacios.
+   *
+   * Importa porque el relleno se comprueba **entrada a entrada** y no sobre el
+   * valor entero: si no, `invitado@example.com, real@x.com` contendría
+   * `example.com`, se descartaría la variable entera y, al no quedar lista,
+   * entraría cualquier cuenta de Google. Fail-closed con aviso.
+   */
+  isList?: boolean;
   /** Para qué sirve. Aparece en los mensajes de error y en el informe. */
   description: string;
 }
@@ -79,7 +88,16 @@ const VARS = {
   ADMIN_EMAIL: {
     group: 'auth',
     optional: true,
-    description: 'Única cuenta de Google con acceso al panel. Sin ella, entra cualquiera',
+    isList: true,
+    description:
+      'Cuentas con acceso al panel de administración (/admin), separadas por comas. Sin valor, entra cualquiera',
+  },
+  UPLOAD_EMAILS: {
+    group: 'auth',
+    optional: true,
+    isList: true,
+    description:
+      'Cuentas que solo pueden subir fotos (/upload), separadas por comas. No ven /admin ni pueden borrar',
   },
   GOOGLE_CLIENT_ID: {
     group: 'drive',
@@ -168,6 +186,14 @@ export interface EnvVarResult {
 function isPlaceholder(value: string): boolean {
   return PLACEHOLDERS.some((pattern) => pattern.test(value));
 }
+
+/**
+ * Comprobación laxa a propósito. No buscamos validar un RFC: queremos
+ * descartar lo que claramente no es un correo (`error.com`, `pendiente`) sin
+ * rechazar direcciones raras pero legítimas. Google ya valida el correo antes
+ * de que llegue aquí.
+ */
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
  * Si el valor de una variable es una credencial. Lo decide el `secret: true` del
@@ -269,7 +295,15 @@ export function inspectEnvVar(name: EnvVarName): EnvVarResult {
     return { name, status: 'empty', source: findSource(name) };
   }
 
-  if (isPlaceholder(value)) {
+  // En una lista el relleno se busca entrada a entrada: una lista con un
+  // `example.com` suelto y correos reales sigue siendo utilizable, y marcarla
+  // entera como relleno mandaría a quien lo lea a pensar que no hay nadie
+  // autorizado. Solo es relleno si lo son todas sus entradas.
+  const isPlaceholderValue = SPECS[name].isList
+    ? value.split(/[,;\s]+/).filter(Boolean).every((entry) => isPlaceholder(entry))
+    : isPlaceholder(value);
+
+  if (isPlaceholderValue) {
     return { name, status: 'placeholder', value, source: findSource(name) };
   }
 
@@ -410,9 +444,58 @@ export function getDriveFolderId(requested?: string): string {
   return normalize(requested) ?? getEnvVar('GOOGLE_DRIVE_FOLDER_ID') ?? '';
 }
 
-/** Email autorizado a entrar al panel, en minúsculas. `null` si no se restringe. */
-export function getAdminEmail(): string | null {
-  return getEnvVar('ADMIN_EMAIL')?.toLowerCase() ?? null;
+/**
+ * Divide una variable de lista en correos utilizables.
+ *
+ * Tres filtros, en este orden y por razones distintas:
+ *
+ * 1. El relleno se comprueba **entrada a entrada**. Si se comprobara sobre el
+ *    valor entero, `invitado@example.com, real@x.com` se descartaría por
+ *    contener `example.com` y la variable quedaría sin lista: al no haber
+ *    lista, entra cualquiera. Es el fallo que hace este helper.
+ * 2. Lo que no parece un correo se descarta con aviso, no en silencio. Con
+ *    `error.com` pegado a la lista real, perder ese aviso es perder la
+ *    medición de por qué un invitado no puede entrar.
+ * 3. Solo si **todas** las entradas son relleno se considera que la variable
+ *    no está puesta, que es la lectura normal de un `.env.example` copiado tal
+ *    cual.
+ *
+ * Devuelve `null` solo cuando no queda ningún correo válido, para que quien
+ * llama distinga "lista vacía" de "lista con entradas".
+ */
+function parseEmailList(name: EnvVarName): string[] | null {
+  const raw = getEnvVar(name);
+  if (!raw) return null;
+
+  const entries = raw
+    .split(/[,;\s]+/)
+    .map((entry) => entry.trim().toLowerCase())
+    .filter(Boolean);
+
+  const usable = entries.filter((entry) => !isPlaceholder(entry));
+  const rejected = entries.filter((entry) => isPlaceholder(entry));
+  const invalid = usable.filter((entry) => !EMAIL_PATTERN.test(entry));
+  const valid = usable.filter((entry) => EMAIL_PATTERN.test(entry));
+
+  if (rejected.length > 0 && valid.length === 0) return null;
+
+  if (invalid.length > 0) {
+    console.warn(
+      `[env] ${name}: se ignoran ${invalid.length} entrada(s) que no son un correo: ${invalid.join(', ')}`
+    );
+  }
+
+  return valid.length > 0 ? [...new Set(valid)] : null;
+}
+
+/** Cuentas con acceso al panel de administración. `null` si no se restringe. */
+export function getAdminEmails(): string[] | null {
+  return parseEmailList('ADMIN_EMAIL');
+}
+
+/** Cuentas que solo pueden subir fotos. `null` si no se restringe. */
+export function getUploadEmails(): string[] | null {
+  return parseEmailList('UPLOAD_EMAILS');
 }
 
 export interface PhotoCacheConfig {

@@ -4,7 +4,13 @@ import { useState } from 'react';
 import { signIn } from 'next-auth/react';
 import styles from './login-form.module.css';
 
-export default function LoginForm({ callbackUrl }: { callbackUrl: string }) {
+export default function LoginForm({
+  callbackUrl,
+  error,
+}: {
+  callbackUrl: string;
+  error?: string;
+}) {
   const [pending, setPending] = useState(false);
 
   function onClick() {
@@ -17,6 +23,12 @@ export default function LoginForm({ callbackUrl }: { callbackUrl: string }) {
 
   return (
     <div className={styles.form}>
+      {error && (
+        <p className={styles.error} role="alert">
+          {error}
+        </p>
+      )}
+
       <button
         className="btn btn-primary"
         type="button"
@@ -27,7 +39,8 @@ export default function LoginForm({ callbackUrl }: { callbackUrl: string }) {
       </button>
 
       <p className={styles.hint}>
-        Solo puede entrar la cuenta de Google que contiene la carpeta de fotos.
+        Solo pueden entrar las cuentas autorizadas por los novios. Si no puedes
+        acceder, pregúntales.
       </p>
     </div>
   );

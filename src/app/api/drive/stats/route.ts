@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/auth';
 import { getFolderStats, getFolderId, isDriveConfigured } from '@/lib/google-drive';
+import { authorize, deniedResponse } from '@/lib/require-access';
 import { formatFileSize } from '@/lib/utils';
 import type { AppStats } from '@/types';
 
@@ -12,10 +12,11 @@ export const dynamic = 'force-dynamic';
  * Solo administradores.
  */
 export async function GET() {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: 'No autorizado.' }, { status: 401 });
-  }
+  // Admite `upload` y no solo `admin`: el panel de subida también consulta estas
+  // cifras para mostrar cuántas fotos hay. Devolver 403 a un uploader que está
+  // en su propia pantalla lo dejaría viendo un error donde antes veía un número.
+  const denied = await authorize('upload');
+  if (denied) return deniedResponse(denied);
 
   if (!isDriveConfigured()) {
     const body: AppStats = {
