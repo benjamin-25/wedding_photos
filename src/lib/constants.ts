@@ -42,7 +42,7 @@ export const CREDITS_CONFIG = {
   /** Frase corta bajo el nombre: a qué se dedica. */
   role: 'Desarrollo web a medida',
   /** Logotipo en `public/`. Fondo transparente. */
-  logo: '/icon.png',
+  logo: '/Icon.png',
   /** Sitio web personal o del estudio. */
   website: {
     label: 'Sitio web',
