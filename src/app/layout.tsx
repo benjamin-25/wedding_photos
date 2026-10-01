@@ -49,7 +49,7 @@ export async function generateMetadata(): Promise<Metadata> {
  * tener que leer cookies en el layout, que sacaría la app del prerenderizado
  * estático. El `try/catch` cubre el modo privado, donde `localStorage` lanza.
  */
-const THEME_INIT_SCRIPT = `(function(){try{var s=localStorage.getItem('theme');if(s!=='light'&&s!=='dark'){s=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}document.documentElement.setAttribute('data-theme',s);}catch(e){document.documentElement.setAttribute('data-theme','light');}})();`;
+const THEME_INIT_SCRIPT = `(function(){try{const hour = new Date().getHours();document.documentElement.setAttribute('data-theme', hour >= 17 ? 'dark' : 'light');}catch(e){document.documentElement.setAttribute('data-theme','light');}})();`;
 
 export default function RootLayout({
   children,
