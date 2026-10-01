@@ -20,7 +20,7 @@
   --radius: 14px;
   --radius-sm: 9px;
   --shadow: 0 8px 20px rgba(35, 102, 79, 0.16), 0 8px 24px rgba(20, 82, 60, 0.16);
-  --shadow-lg: 0 8px 80px rgba(55, 186, 140, 0.16), 0 30px 80px rgba(55, 186, 140, 0.16);
+  --shadow-lg: 0 8px 80px rgba(185, 128, 3, 0.685), 0 30px 80px rgba(55, 186, 140, 0.16);
   /* Radio de cristal para los paneles con backdrop-filter */
   --glass-blur: 14px;
 
@@ -67,8 +67,8 @@
   --accent-contrast: #14142a;
   --danger: #e07763;
   --success: #7fb894;
-  --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.35);
-  --shadow-lg: 0 8px 40px rgb(0 0 0 / 0.55);
+  --shadow: 0 3px 10px rgba(204, 204, 204, 0.445), 0 8px 24px rgb(0 0 0 / 0.35);
+  --shadow-lg: 0 8px 40px rgba(224, 220, 220, 0.747);
 
   color-scheme: dark;
 }
