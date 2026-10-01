@@ -1,5 +1,5 @@
 export const APP_CONFIG = {
-  MAX_FILE_SIZE: 25 * 1024 * 1024, // 25MB
+  MAX_FILE_SIZE: 5 * 1024 * 1024, // 5MB
   ALLOWED_TYPES: ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'],
   ALLOWED_EXTENSIONS: ['.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif'],
   MAX_CONCURRENT_UPLOADS: 3,
