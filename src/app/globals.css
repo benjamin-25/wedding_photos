@@ -23,24 +23,54 @@
   --shadow-lg: 0 8px 80px rgba(55, 186, 140, 0.16), 0 30px 80px rgba(55, 186, 140, 0.16);
   /* Radio de cristal para los paneles con backdrop-filter */
   --glass-blur: 14px;
+
+  /*
+   * Las dos fotos de fondo, cada una en su variable. Se pintan en dos capas
+   * superpuestas (`body::before` y `body::after`) y el tema decide cuál se ve
+   * con la opacidad, que sí es animable. Ver el bloque de las capas más abajo.
+   *
+   * `image-set()` deja que el navegador elija formato sin JavaScript: los que
+   * soportan AVIF cogen el primero, el resto el WebP. Los PNG de origen miden
+   * 7,5 MB y 783 KB; estas versiones, 35 KB y 24 KB.
+   */
+  --bg-day: image-set(
+    url('/background_dia.avif') type('image/avif'),
+    url('/background_dia.webp') type('image/webp')
+  );
+  --bg-night: image-set(
+    url('/background_noche.avif') type('image/avif'),
+    url('/background_noche.webp') type('image/webp')
+  );
+  /* Duración del fundido entre las dos fotos. */
+  --bg-fade: 0.5s;
+
+  color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #101046;
-    --foreground: #ddb98a;
-    --surface: #175a57;
-    --surface-muted: #262644;
-    --border: #35355a;
-    --muted: #a49bb0;
-    --accent: var(--gold);
-    --accent-soft: #b8843f;
-    --accent-contrast: #14142a;
-    --danger: #e07763;
-    --success: #7fb894;
-    --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.35);
-    --shadow-lg: 0 8px 40px rgb(0 0 0 / 0.55);
-  }
+/*
+ * El tema lo decide el atributo `data-theme` de `<html>`, no la media query
+ * `prefers-color-scheme`: el botón de `components/theme-toggle.tsx` escribe ese
+ * atributo y es lo que permite alternar a mano. El script en línea de
+ * `app/layout.tsx` lo fija antes del primer pintado, leyendo `localStorage` y,
+ * si no hay nada guardado, la preferencia del sistema. Ver la guía
+ * "preventing-flash-before-hydration" de Next.
+ */
+:root[data-theme='dark'] {
+  --background: #101046;
+  --foreground: #ddb98a;
+  --surface: #175a57;
+  --surface-muted: #262644;
+  --border: #35355a;
+  --muted: #a49bb0;
+  --accent: var(--gold);
+  --accent-soft: #b8843f;
+  --accent-contrast: #14142a;
+  --danger: #e07763;
+  --success: #7fb894;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.35);
+  --shadow-lg: 0 8px 40px rgb(0 0 0 / 0.55);
+
+  color-scheme: dark;
 }
 
 html {
@@ -58,10 +88,55 @@ body {
   display: flex;
   flex-direction: column;
   color: var(--foreground);
-  background: var(--background);
+  background-color: var(--background);
   font-family: var(--font-body), 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color var(--bg-fade) ease, color var(--bg-fade) ease;
+}
+
+/*
+ * Capas de foto de fondo fijas respecto a la ventana.
+ *
+ * `background-attachment: fixed` no funciona en iOS Safari. Para arreglarlo
+ * usamos dos pseudoelementos `position: fixed` que comparten geometría. El tema
+ * controla `opacity` (animable): por defecto vemos el día; con `data-theme='dark'`
+ * el día baja a 0 y la noche sube a 1, produciendo un crossfade suave.
+ *
+ * - `inset: 0` evita depender de `100vh` (iOS incluye barras de dirección).
+ * - `z-index: -1` detrás del contenido.
+ * - `pointer-events: none` para no bloquear interacciones.
+ */
+body::before,
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-color: var(--background);
+  background-repeat: no-repeat;
+  background-position: center top;
+  background-size: cover;
+  pointer-events: none;
+  transition: opacity var(--bg-fade) ease;
+}
+
+body::before {
+  background-image: var(--bg-day);
+  opacity: 1;
+}
+
+body::after {
+  background-image: var(--bg-night);
+  opacity: 0;
+}
+
+:root[data-theme='dark'] body::before {
+  opacity: 0;
+}
+
+:root[data-theme='dark'] body::after {
+  opacity: 1;
 }
 
 * {
@@ -99,12 +174,6 @@ select {
   outline-offset: 2px;
 }
 
-@media (prefers-color-scheme: light) {
-  html {
-    color-scheme: dark;
-  }
-}
-
 /* ---------- utilidades compartidas ---------- */
 
 .container {
@@ -120,7 +189,7 @@ select {
 }
 
 .card {
-  background: var(--surface);
+  background: color-mix(in srgb, var(--surface) 55%, transparent);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);

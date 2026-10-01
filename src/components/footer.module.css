@@ -1,7 +1,7 @@
 .footer {
   margin-top: auto;
   border-top: 1px solid var(--border);
-  background: color-mix(in srgb, var(--surface) 55%, transparent);
+  background: color-mix(in srgb, var(--surface) 85%, transparent);
   color: var(--muted);
   font-size: 0.875rem;
   padding: 15px 0px;
