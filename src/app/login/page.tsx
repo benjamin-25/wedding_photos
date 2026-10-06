@@ -14,20 +14,26 @@ export const metadata: Metadata = {
 /**
  * Traduce el `error` que Auth.js devuelve por query al texto que se enseña.
  *
- * Aquí solo hay un fallo con nombre propio, `AccessDenied`, que es el que
- * produce el callback `signIn` al devolver `false` para una cuenta que no está
- * en ninguna lista. La lista de correos no se enseña nunca: publicarla sería
- * darle a cualquiera las direcciones de los novios y de sus invitados.
+ * El callback `signIn` de `src/auth.ts` ya no deniega a nadie, así que
+ * `AccessDenied` solo puede venir de fuera: el motivo habitual es que la
+ * pantalla de consentimiento de Google siga en modo "Pruebas" y Google rechace
+ * a cualquier cuenta que no figure como usuario de prueba. Ese rechazo ocurre
+ * antes de que la aplicación vea nada, y de ahí que el texto apunte a esa
+ * pantalla y no a una lista de correos interna.
  *
  * Cualquier otro valor se muestra como un fallo genérico, sin texto de
- * Auth.js: sus mensajes internos nombran el proveedor y el callback, que no
+ * Auth.js: sus mensajes internos nombran al proveedor y al callback, que no
  * ayuda a quien solo quiere entrar.
  */
 function signInError(error: string | undefined): string | undefined {
   if (!error) return undefined;
 
   if (error === 'AccessDenied') {
-    return 'Esa cuenta de Google no está autorizada. Pídeselo a los novios para que te añadan.';
+    return (
+      'Google no ha dejado entrar con esa cuenta. Si la aplicación sigue en ' +
+      'modo pruebas, pide a los novios que la publiquen o que te añadan como ' +
+      'usuario de prueba.'
+    );
   }
 
   return 'No se ha podido iniciar sesión con Google. Inténtalo de nuevo.';
@@ -48,10 +54,13 @@ export default async function LoginPage({
 
   const { callbackUrl, error } = await searchParams;
   // Solo se admiten rutas internas para evitar redirecciones abiertas.
+  // El destino por defecto es /upload, que es donde aterriza cualquier rol:
+  // /admin lo verá quien corresponda desde la portada, y mandar a un invitado
+  // a /admin solo lo llevaría a /no-autorizado.
   const safeCallback =
     callbackUrl && callbackUrl.startsWith('/') && !callbackUrl.startsWith('//')
       ? callbackUrl
-      : ROUTES.ADMIN;
+      : ROUTES.UPLOAD;
 
   // `auth()` ya usa datos de la petición, así que la página es dinámica y el
   // título se lee ahora, no en el prerender.

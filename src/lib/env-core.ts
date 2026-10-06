@@ -90,14 +90,7 @@ const VARS = {
     optional: true,
     isList: true,
     description:
-      'Cuentas con acceso al panel de administración (/admin), separadas por comas. Sin valor, entra cualquiera',
-  },
-  UPLOAD_EMAILS: {
-    group: 'auth',
-    optional: true,
-    isList: true,
-    description:
-      'Cuentas que solo pueden subir fotos (/upload), separadas por comas. No ven /admin ni pueden borrar',
+      'Cuentas con acceso al panel de administración (/admin), separadas por comas. El resto de cuentas de Google sube fotos sin estar en ninguna lista',
   },
   GOOGLE_CLIENT_ID: {
     group: 'drive',
@@ -451,11 +444,12 @@ export function getDriveFolderId(requested?: string): string {
  *
  * 1. El relleno se comprueba **entrada a entrada**. Si se comprobara sobre el
  *    valor entero, `invitado@example.com, real@x.com` se descartaría por
- *    contener `example.com` y la variable quedaría sin lista: al no haber
- *    lista, entra cualquiera. Es el fallo que hace este helper.
+ *    contener `example.com` y la variable quedaría sin lista: con `ADMIN_EMAIL`
+ *    sin lista, ningún invitado tendría acceso de administración. Es el fallo
+ *    que hace este helper.
  * 2. Lo que no parece un correo se descarta con aviso, no en silencio. Con
  *    `error.com` pegado a la lista real, perder ese aviso es perder la
- *    medición de por qué un invitado no puede entrar.
+ *    medición de por qué un novio no puede entrar en /admin.
  * 3. Solo si **todas** las entradas son relleno se considera que la variable
  *    no está puesta, que es la lectura normal de un `.env.example` copiado tal
  *    cual.
@@ -488,14 +482,9 @@ function parseEmailList(name: EnvVarName): string[] | null {
   return valid.length > 0 ? [...new Set(valid)] : null;
 }
 
-/** Cuentas con acceso al panel de administración. `null` si no se restringe. */
+/** Cuentas con acceso al panel de administración. `null` si nadie administra. */
 export function getAdminEmails(): string[] | null {
   return parseEmailList('ADMIN_EMAIL');
-}
-
-/** Cuentas que solo pueden subir fotos. `null` si no se restringe. */
-export function getUploadEmails(): string[] | null {
-  return parseEmailList('UPLOAD_EMAILS');
 }
 
 export interface PhotoCacheConfig {

@@ -16,8 +16,9 @@ const MAX_FILES_PER_REQUEST = 50;
  * POST /api/photos/upload
  * Sube una o varias imágenes a Google Drive.
  *
- * Es la única operación que puede hacer un `uploader`: es a lo que da acceso la
- * lista `UPLOAD_EMAILS`. Todo lo demás del panel queda reservado a `admin`.
+ * Es la única operación que puede hacer un `uploader`, y subir puede cualquier
+ * cuenta con sesión: no hace falta figurar en ninguna lista. Todo lo demás del
+ * panel (borrar, descargar, configurar Drive) queda reservado a `admin`.
  *
  * Acepta `multipart/form-data` con uno o varios campos llamados `files`
  * (y opcionalmente `folderId`).

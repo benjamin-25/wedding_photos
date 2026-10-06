@@ -39,8 +39,8 @@ export default function LoginForm({
       </button>
 
       <p className={styles.hint}>
-        Solo pueden entrar las cuentas autorizadas por los novios. Si no puedes
-        acceder, pregúntales.
+        Entra con tu cuenta de Google para subir tus fotos: sirve cualquier
+        cuenta. La administración de la galería está reservada a los novios.
       </p>
     </div>
   );

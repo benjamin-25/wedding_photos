@@ -29,8 +29,9 @@ export const proxy = auth((request: NextAuthRequest) => {
 });
 
 export const config = {
-  // `/upload` también va aquí: el panel de subida es parte de la administración.
-  // `/api/photos/upload` comprueba la sesión por su cuenta, pero la página en sí
-  // no debe ser accesible sin entrar.
+  // `/upload` también va aquí porque la página es de sesión privada: sin
+  // entrar no hay panel. Cualquier cuenta de Google puede logearse, así que
+  // el proxy no excluye a nadie, solo evita enseñar el panel a anónimos.
+  // `POST /api/photos/upload` vuelve a comprobar el permiso por su cuenta.
   matcher: ['/admin/:path*', '/upload/:path*'],
 };

@@ -4,8 +4,8 @@ Aplicación web para recoger las fotos de los invitados de una boda en un Google
 Drive **privado**, y publicarlas en una galería con enlace y código QR.
 
 - **Next.js 16** (App Router, Turbopack) · React 19 · TypeScript
-- **NextAuth v5** con un único administrador que entra con su cuenta de Google
-- **Google Drive API v3** mediante OAuth 2.0 a nombre de ese administrador
+- **NextAuth v5** con login abierto mediante cuenta de Google: cualquier invitado sube fotos y `ADMIN_EMAIL` decide quién administra
+- **Google Drive API v3** mediante OAuth 2.0 a nombre del administrador
 - **sharp** para servir miniaturas y tamaños intermedios sin descargar el original
 - **CSS Modules**, sin framework de estilos
 
@@ -14,8 +14,10 @@ Las fotos nunca se exponen directamente: el navegador pide las imágenes a
 OAuth, de modo que el Drive puede permanecer completamente privado y las
 credenciales no salen nunca al cliente.
 
-Los invitados **no necesitan cuenta**: entran desde el QR, eligen las fotos que
-quieren con las casillas y se las descargan en un ZIP.
+Los invitados **no necesitan cuenta para ver ni descargar**: entran desde el
+QR, eligen las fotos que quieren con las casillas y se las descargan en un
+ZIP. Para **subir** fotos sí tienen que iniciar sesión con su cuenta de
+Google; sirve cualquier cuenta.
 
 ---
 
@@ -52,8 +54,10 @@ Genera el secreto de sesión:
 node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 ```
 
-Y la cuenta de Google que administrará la boda. No hay contraseña: el acceso se
-hace con Google y solo entra el email de `ADMIN_EMAIL`.
+Y las cuentas de Google que usarán la boda: no hay contraseña, el acceso se
+hace con Google. Cualquier invitado puede entrar y subir fotos; el email (o
+los emails) de `ADMIN_EMAIL` es el único que tendrá acceso al panel de
+administración.
 
 ### 3. Configurar Google Drive con OAuth
 
@@ -113,9 +117,9 @@ para el login con Google y para las llamadas a la API, así que solo hay que
 crear un cliente OAuth.
 
 > En Vercel hay que añadir también `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`,
-> `GOOGLE_REFRESH_TOKEN`, `GOOGLE_DRIVE_FOLDER_ID` y `ADMIN_EMAIL` en
-> *Settings → Environment Variables*. El refresh token es un secreto: no lo
-> subas al repositorio.
+> `GOOGLE_REFRESH_TOKEN` y `GOOGLE_DRIVE_FOLDER_ID` en *Settings → Environment
+> Variables*, junto con `ADMIN_EMAIL` si quieres panel de administración. El
+> refresh token es un secreto: no lo subas al repositorio.
 
 ### 4. Arrancar
 
@@ -135,11 +139,14 @@ Abre [http://localhost:3000](http://localhost:3000).
 
 ### 5. Iniciar sesión
 
-Entra en `/admin` y pulsa **Continuar con Google** con la cuenta cuyo email
-figura en `ADMIN_EMAIL` (típicamente la misma que contiene la carpeta de fotos).
-Cualquier otra cuenta de Google es rechazada. Desde ahí puedes:
+Cualquier invitado entra en `/login` (o pulsa **Subir fotos** en la portada) y
+sigue **Continuar con Google** con su cuenta: no hay lista de invitados, y en
+`/upload` puede **subir fotos** arrastrándolas o seleccionándolas (hasta 50 por
+envío).
 
-- **Subir fotos** arrastrándolas o seleccionándolas (hasta 50 por envío).
+Si su email figura en `ADMIN_EMAIL`, la portada le muestra además
+**Administrar**, y desde `/admin` puede:
+
 - **Ver el código QR** de la galería, elegir su tamaño y color, y descargarlo como
   PNG o SVG para imprimirlo.
 - **Consultar la carpeta** de Drive y sus subcarpetas, y copiar su identificador.
@@ -154,7 +161,7 @@ Cualquier otra cuenta de Google es rechazada. Desde ahí puedes:
 | --- | --- | --- |
 | `AUTH_SECRET` | En producción | Cifra la cookie de sesión. Generarla con `crypto.randomBytes(32)`. |
 | `AUTH_TRUST_HOST` | No | Alternativa a `trustHost: true` (ya activado en `src/auth.ts`). |
-| `ADMIN_EMAIL` | Sí | Única cuenta de Google con acceso al panel. |
+| `ADMIN_EMAIL` | No | Correos con acceso al panel. Sin ella, cualquiera sube fotos pero nadie administra. |
 | `GOOGLE_CLIENT_ID` | Para la galería | ID del cliente OAuth 2.0. |
 | `GOOGLE_CLIENT_SECRET` | Para la galería | Secreto del cliente OAuth 2.0. |
 | `GOOGLE_REFRESH_TOKEN` | Para la galería | Refresh token de la cuenta de Google proprietaria de la carpeta. Se genera con `npm run drive:token`. |
@@ -174,10 +181,14 @@ el panel funcionan, y la galería muestra un aviso de que falta configurarlas.
 | --- | --- | --- |
 | `/` | Público | Portada con acceso a la galería. |
 | `/gallery` | Público | Galería con scroll infinito, filtro por álbum, selección y ZIP. |
-| `/login` | Público | Inicio de sesión del administrador. |
-| `/admin` | Administrador | Subida de fotos, QR, estadísticas, carpetas y borrado. |
+| `/login` | Público | Inicio de sesión con Google (invitados y administración). |
+| `/upload` | Con sesión | Panel de subida: cualquier cuenta de Google. |
+| `/admin` | Administrador | QR, estadísticas, carpetas y borrado. |
+| `/no-autorizado` | Con sesión | Aterrizaje de quien pide una zona a la que su cuenta no tiene acceso. |
 
-La carpeta `/admin` está protegida por `src/proxy.ts` (antes `middleware.ts`).
+La carpeta `/admin` y `/upload` están protegidas por `src/proxy.ts` (antes
+`middleware.ts`), que solo comprueba que haya sesión: qué rol puede hacer qué
+lo deciden cada página y cada ruta API.
 Las rutas API **verifican la sesión por sí mismas**, porque el proxy se ejecuta
 aparte del runtime de la aplicación y no cubre las peticiones a `/api`.
 
@@ -190,11 +201,11 @@ aparte del runtime de la aplicación y no cubre las peticiones a `/api`.
 | `GET` | `/api/photos/:id` | Público | Metadatos de una foto. |
 | `GET` | `/api/photos/:id/raw` | Público | Bytes de la imagen (proxy de Drive). `?size=thumb\|medium\|full` |
 | `DELETE` | `/api/photos/:id` | Administrador | Elimina la foto de Drive. |
-| `POST` | `/api/photos/upload` | Administrador | Sube archivos (`multipart/form-data`, campo `files`). |
+| `POST` | `/api/photos/upload` | Con sesión | Sube archivos (`multipart/form-data`, campo `files`). |
 | `POST` | `/api/photos/download` | Público | ZIP con las fotos indicadas en `{ "ids": [...] }`. |
 | `GET` | `/api/photos/download` | Administrador | ZIP con todas las fotos. `?folderId=&limit=` |
 | `GET` | `/api/drive/folders` | Administrador | Lista las subcarpetas. `?parentId=` |
-| `GET` | `/api/drive/stats` | Administrador | Total de fotos, espacio ocupado y carpeta. |
+| `GET` | `/api/drive/stats` | Con sesión | Total de fotos, espacio ocupado y carpeta. |
 
 ### Flujo de los invitados
 
@@ -205,11 +216,14 @@ La galería es pública y no necesita cuenta:
 3. Marcar las que interesen con las casillas.
 4. Pulsar **Descargar** en la barra flotante para recibirlas en un ZIP.
 
-La descarga es pública a propósito porque los invitados no tienen usuario. Para
-que no se convierta en un endpoint que cualquiera pueda usar para generar ZIPs
+La descarga es pública a propósito: ver y descargar no exige cuenta. Para que
+no se convierta en un endpoint que cualquiera pueda usar para generar ZIPs
 masivos, cada petición está limitada a `MAX_DOWNLOAD_PHOTOS` (200) fotos y los
 ficheros se piden de tres en tres. Si la galería es privada o tiene mucho tráfico,
 ponla detrás de autenticación o añade limitación de tasa.
+
+Quien quiera **subir** fotos entra con su cuenta de Google desde `/upload`:
+cualquier cuenta sirve, y su subida aparece en la galería al instante.
 
 ### Variantes de tamaño
 
@@ -289,9 +303,9 @@ no hay que refrescar nada a mano.
 El proveedor `Google` de Auth.js es de tipo `oidc` y saca el perfil del usuario
 del `id_token`. Si en `authorization.params.scope` se pone solo el alcance de
 Drive, se **sustituye** la lista por defecto del proveedor: Google no emite
-`id_token`, el callback `signIn` recibe `user.email === undefined` y la
-comprobación contra `ADMIN_EMAIL` falla siempre. Por eso `GOOGLE_SCOPES` en
-`src/auth.ts` concatena `drive` con `openid email profile`.
+`id_token`, el callback `signIn` recibe `user.email === undefined` y la cuenta
+no puede subir fotos (es todo lo que hace falta para no tener ningún rol). Por
+eso `GOOGLE_SCOPES` en `src/auth.ts` incluye `openid email profile`.
 
 Relacionado: el login **no** pide `access_type=offline` ni `prompt=consent`.
 El acceso a Drive no viene de la sesión, sino de `GOOGLE_REFRESH_TOKEN`, así que

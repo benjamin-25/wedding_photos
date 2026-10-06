@@ -16,8 +16,8 @@ export default async function UploadPage() {
   // congelaría con el `WEDDING_TITLE` que hubiera en ese momento.
   await connection();
 
-  // Admite a cualquiera con sesión, incluidos los que solo suben: por eso se
-  // llama `canUpload` y no se mira el rol `admin` uno a uno.
+  // Admite a cualquier cuenta con sesión, invitada o administradora: por eso
+  // se llama `canUpload` y no se mira el rol `admin` uno a uno.
   const session = await auth();
   if (!canUpload(session?.user?.email)) {
     redirect(ROUTES.UNAUTHORIZED);

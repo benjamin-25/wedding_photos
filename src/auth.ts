@@ -1,11 +1,15 @@
 import NextAuth from 'next-auth';
 import Google from 'next-auth/providers/google';
-import { getRoles, isRestricted } from '@/lib/access';
-import { getEnvVar } from '@/lib/env';
+import { getRoles } from '@/lib/access';
+import { getAdminEmails, getEnvVar } from '@/lib/env';
 
 /**
- * Autenticación del panel de administración mediante la cuenta de Google del
- * administrador.
+ * Autenticación con la cuenta de Google del invitado o de los novios.
+ *
+ * El login está abierto: entra cualquier cuenta de Google. Quien figura en
+ * `ADMIN_EMAIL` obtiene además el rol `admin` (borrar, descargar, panel); el
+ * resto entra como `uploader` y solo sube fotos. La distinción vive en
+ * `src/lib/access.ts`, no aquí.
  *
  * Se usa la cuenta real y no una cuenta de servicio porque las fotos se
  * guardan en su Drive: una Service Account no tiene cuota de almacenamiento ni
@@ -32,8 +36,8 @@ import { getEnvVar } from '@/lib/env';
  * Los tres scopes OIDC **no son opcionales**: el proveedor de Auth.js es de
  * tipo `oidc` y saca el perfil del usuario del `id_token`. Si `scope` quedara
  * vacío, Google no emitiría `id_token` y el callback `signIn` recibiría
- * `user.email === undefined`, así que la comprobación de siempre fallaría y
- * nadie podría entrar.
+ * `user.email === undefined`, con lo que la cuenta no podría subir fotos ni
+ * alcanzar ningún rol.
  *
  * Al definir `scope` a mano se sustituye la lista por defecto del proveedor,
  * de ahí que haya que incluir aquí los scopes OIDC.
@@ -58,7 +62,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         params: {
           scope: GOOGLE_SCOPES,
           // No se piden `access_type=offline` ni `prompt=consent`. El login
-          // solo autentica al administrador: el acceso a Drive no viene de la
+          // solo autentica al usuario: el acceso a Drive no viene de la
           // sesión, sino de `GOOGLE_REFRESH_TOKEN` (ver `src/lib/google-drive.ts`),
           // y así no se le obliga a pasar por la pantalla de consentimiento en
           // cada entrada. El refresh token se genera aparte, con
@@ -75,40 +79,42 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   callbacks: {
     /**
-     * Puerta de entrada: sin sesión no hay nada que comprobar, así que aquí solo
-     * se pregunta si la cuenta tiene algún rol. Los permisos concretos los
-     * aplican `src/lib/access.ts` en cada página y cada ruta.
+     * Puerta de entrada: entra cualquier cuenta de Google.
+     *
+     * Aquí no se niega a nadie a propósito; el único requisito es que la
+     * cuenta traiga email, que es lo que permite asignarle un rol. Los
+     * permisos concretos los aplican `src/lib/access.ts` en cada página y
+     * cada ruta: `ADMIN_EMAIL` decide quién es `admin` y el resto son
+     * `uploader`, que solo pueden subir fotos.
      *
      * Google ya garantiza que el email viene verificado, así que comparar
-     * contra las listas basta.
+     * contra `ADMIN_EMAIL` basta para repartir roles.
      *
-     * La regla es: si no hay ninguna lista definida entra cualquiera, y en
-     * cuanto se define una sola ya no entra quien no esté en ella. Un clon
-     * recién bajado arranca sin bloquear a nadie, pero tan pronto como se
-     * declara la primera cuenta la aplicación deja de estar abierta. Lo
-     * contrario —cerrar en cuanto se declara una— dejaría a un despliegue mal
-     * configurado sin puerta por la que ni siquiera ver el error.
+     * Si `ADMIN_EMAIL` está sin definir la app sigue abierta —cualquiera
+     * sube—, pero no hay nadie que pueda borrar fotos ni descargar la
+     * galería entera, así que se avisa por consola: es un síntoma de
+     * despliegue a medio configurar, no una decisión del novio.
      */
     async signIn({ user }) {
-      if (!isRestricted()) {
-        console.warn(
-          '[auth] Ni ADMIN_EMAIL ni UPLOAD_EMAILS están definidos: entra cualquier cuenta de ' +
-            'Google. Define al menos ADMIN_EMAIL para restringir el acceso.'
-        );
-        return true;
-      }
-
       const roles = getRoles(user.email);
 
       if (roles.length === 0) {
         console.warn(
-          `[auth] Acceso denegado a ${user.email ?? 'cuenta desconocida'}: no figura en ` +
-            'ADMIN_EMAIL ni en UPLOAD_EMAILS.'
+          `[auth] ${user.email ?? 'Una cuenta de Google'} ha entrado sin email: ` +
+            'podrá ver la galería, pero no subir fotos.'
         );
-        return false;
+        return true;
       }
 
       console.log(`[auth] Acceso concedido a ${user.email} como ${roles.join(' + ')}.`);
+
+      if (!roles.includes('admin') && getAdminEmails() === null) {
+        console.warn(
+          '[auth] ADMIN_EMAIL sin definir: entra cualquier cuenta de Google y ' +
+            'nadie tiene acceso a /admin (borrado, descarga y panel).'
+        );
+      }
+
       return true;
     },
     async jwt({ token, user }) {
